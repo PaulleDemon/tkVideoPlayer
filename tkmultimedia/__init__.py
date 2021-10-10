@@ -1,1 +1,1 @@
-from .tkvideo import TkinterVideo
+from tkmultimedia.tkvideo import TkinterVideo
