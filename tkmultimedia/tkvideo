@@ -1,7 +1,8 @@
 import av
+import time
 import threading
 import tkinter as tk
-from PIL import ImageTk
+from PIL import ImageTk, Image
 from typing import Tuple
 
 
@@ -11,34 +12,50 @@ class TkinterVideo(tk.Label):
         super(TkinterVideo, self).__init__(*args, **kwargs)
 
         self.image_sequence = []
-        self._frame_rate = 1
         self.current_imgtk = None
         self.current_img = None
         self.load_thread = None
+        
+        self._frame_rate = 1
         self._frame_size = (100, 75)
-        self.frame_number = 0
+        self._frame_number = 0
 
+        self.screen_size = (50, 50)
         self.scaled = set_scaled
         self.preload = pre_load
         self._loaded = False
+        self._paused = True
+        self._playing = False
 
-        self.bind("<<loaded>>", self._post_load)
+        self.bind("<<FrameSize>>", self._set_frame_size)
 
-    def _post_load(self, event):
-        self.config(width=self.frame_size[0], height=self.frame_size[1])
-        self._loaded = True
+
+    def _set_frame_size(self, event=None):
+     
+        self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA",  self._frame_size, (255, 0, 0, 0)))
+        self.config(width=self._frame_size[0], height=self._frame_size[1], image=self.current_imgtk)
 
     def _load(self, file_path: str):
         """ loads the frames from a thread """
+        
+        try: 
+            with av.open(file_path) as container:
+                self._frame_rate = int(container.streams.video[0].average_rate)
+                self._frame_size = (container.streams.video[0].width, container.streams.video[0].height)
+                self.event_generate("<<FrameSize>>")
 
-        with av.open(file_path) as container:
-            self.image_sequence = [frame.to_image() for frame in container.decode(video=0)]
-            self._frame_rate = container.streams.video[0].average_rate
-            
-            if self.image_sequence:
-                self.frame_size = self.image_sequence[0].size
+                if self.preload:
+                    self.image_sequence = [frame.to_image() for frame in container.decode(video=0)]
 
-        self.event_generate("<<loaded>>")
+                else:
+                    for frame in container.decode(video=0):
+                        self.image_sequence.append(frame.to_image())
+                
+            self._loaded = True
+            self.event_generate("<<loaded>>")
+        
+        except Exception as e:
+            raise e
 
     def load(self, file_path=""):
         """ loads the video and generates <<loaded>> event after loading """
@@ -50,20 +67,6 @@ class TkinterVideo(tk.Label):
     def loaded(self) -> bool:
         """ returns whether the video has been loaded """
         return self._loaded
-
-    def play(self):
-        """ plays the loaded video """
-        self.playing = True
-
-        if not self.preload:
-            self._start_play()
-        
-        else:
-            self.bind("<<loaded>>", self._start_play)
-
-    def pause(self):
-        """ pauses the video """
-        self.playing = False
     
     def frame_size(self) -> Tuple[int, int]:
         """ return frame dimension """
@@ -75,12 +78,40 @@ class TkinterVideo(tk.Label):
 
     def frame(self) -> Tuple[tk.Image, int, float]:
         """ return current frame image, frame number and frame rate  """
-        return self.current_img, self.frame_number, self._frame_rate
+        return self.current_img, self._frame_number, self._frame_rate
+
+    def play(self):
+        """ plays the loaded video """
+        self._playing = True
+        
+        if self._frame_number == len(self.image_sequence):
+            self._frame_number = 0
+
+        self.bind("<<FrameGenerated>>", self._start_play)
+        if not self.preload:
+            self._paused = False
+            self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
+            self._playing_thread.start()
+
+        else:
+            self.bind("<<loaded>>", self._start_loaded)
+
+    def _start_loaded(self, event):
+
+        self._paused = False
+        # self._start_play()
+        self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
+        self._playing_thread.start()
+
+    def pause(self):
+        """ pauses the video """
+        self._paused = True
 
     def stop(self):
         """ stop removes the loaded video and reset the frame_number"""
         self.playing = False
-        self.frame_number = 0 
+        self._paused = True
+        self._frame_number = 0 
         self.image_sequence = []   
 
     def skip_sec(self, sec: int):
@@ -90,35 +121,62 @@ class TkinterVideo(tk.Label):
     def skip_frames(self, number_of_frames: int):
         """ skip by how many frames +ve or -ve """
 
-        if number_of_frames < 0 and (self.frame_number - number_of_frames) > 0:
-            self.frame_number -= number_of_frames
+        if number_of_frames < 0 and (self._frame_number - number_of_frames) > 0:
+            self._frame_number -= number_of_frames
         
-        elif number_of_frames > 0 and (self.frame_number + number_of_frames) > len(self.image_sequence):
-            self.frame_number += number_of_frames
+        elif number_of_frames > 0 and (self._frame_number + number_of_frames) > len(self.image_sequence):
+            self._frame_number += number_of_frames
 
-    def _start_play(self):
-        
-        # print(self.frame_number)
-        if self.playing and self.frame_number < len(self.image_sequence):
+    def _update_frames(self):
+        """ updates frame from thread """
+       
+        now = time.time_ns() //  1_000_000  # time in milliseconds
+        then = now
+        print("updating...")
+        while self._playing:
             
-            self.current_img = self.image_sequence[self.frame_number]
+            # if self._frame_number >= len(self.image_sequence):
+            #     break
+            now = time.time_ns() //  1_000_000
+            delta = now - then
+            then = now
 
+            if delta == 0:
+                delta = 1
+
+            if not self._paused and self._frame_number < len(self.image_sequence):
+                
+              
+                # print(delta, 1/self._frame_rate, 1/(self._frame_rate * delta))
+
+                self.current_img = self.image_sequence[self._frame_number].copy()
+                self._frame_number += 1
+                self.event_generate("<<FrameGenerated>>")
+            
+            time.sleep(1/(self._frame_rate * delta))
+
+
+        self._playing = False
+        self._paused = True
+
+    def _start_play(self, event):
+        """ updates the image in the label """
+
+        # if self._playing and not self._paused:
+        # print("Updating....")
+        if  self.current_img:
+            
             if self.scaled:
                 self.current_img = self.current_img.resize((self.winfo_width(), self.winfo_height()))
-                self.image_sequence[self.frame_number] = self.current_img
-            
+
             self.current_imgtk = ImageTk.PhotoImage(self.current_img)
             self.config(image=self.current_imgtk)
-            self.frame_number += 1
-
-        if self.playing:  # This is seperate block as it has to keep checking if new frame has been appended
-            self.after(1000//self._frame_rate, self._start_play)
 
 
 root = tk.Tk()
 
-tkvideo = TkinterVideo(master=root, set_scaled=True)
-tkvideo.load(r"sampledata\samplevideo.mp4")
+tkvideo = TkinterVideo(master=root, set_scaled=False, pre_load=False)
+tkvideo.load(r"sampledata/samplevideo.mp4")
 tkvideo.pack(expand=True, fill="both")
 
 tkvideo.play()
