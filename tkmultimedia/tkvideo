@@ -1,0 +1,127 @@
+import av
+import threading
+import tkinter as tk
+from PIL import ImageTk
+from typing import Tuple
+
+
+class TkinterVideo(tk.Label):
+
+    def __init__(self, set_scaled: bool = False, pre_load: bool=False, *args, **kwargs):
+        super(TkinterVideo, self).__init__(*args, **kwargs)
+
+        self.image_sequence = []
+        self._frame_rate = 1
+        self.current_imgtk = None
+        self.current_img = None
+        self.load_thread = None
+        self._frame_size = (100, 75)
+        self.frame_number = 0
+
+        self.scaled = set_scaled
+        self.preload = pre_load
+        self._loaded = False
+
+        self.bind("<<loaded>>", self._post_load)
+
+    def _post_load(self, event):
+        self.config(width=self.frame_size[0], height=self.frame_size[1])
+        self._loaded = True
+
+    def _load(self, file_path: str):
+        """ loads the frames from a thread """
+
+        with av.open(file_path) as container:
+            self.image_sequence = [frame.to_image() for frame in container.decode(video=0)]
+            self._frame_rate = container.streams.video[0].average_rate
+            
+            if self.image_sequence:
+                self.frame_size = self.image_sequence[0].size
+
+        self.event_generate("<<loaded>>")
+
+    def load(self, file_path=""):
+        """ loads the video and generates <<loaded>> event after loading """
+        self.image_sequence = []
+
+        self.load_thread = threading.Thread(target=self._load, args=(file_path, ), daemon=True)
+        self.load_thread.start()
+
+    def loaded(self) -> bool:
+        """ returns whether the video has been loaded """
+        return self._loaded
+
+    def play(self):
+        """ plays the loaded video """
+        self.playing = True
+
+        if not self.preload:
+            self._start_play()
+        
+        else:
+            self.bind("<<loaded>>", self._start_play)
+
+    def pause(self):
+        """ pauses the video """
+        self.playing = False
+    
+    def frame_size(self) -> Tuple[int, int]:
+        """ return frame dimension """
+        return self._frame_size
+
+    def frame_rate(self) -> float:
+        """ returns the current frame rate """
+        return self._frame_rate
+
+    def frame(self) -> Tuple[tk.Image, int, float]:
+        """ return current frame image, frame number and frame rate  """
+        return self.current_img, self.frame_number, self._frame_rate
+
+    def stop(self):
+        """ stop removes the loaded video and reset the frame_number"""
+        self.playing = False
+        self.frame_number = 0 
+        self.image_sequence = []   
+
+    def skip_sec(self, sec: int):
+        """ skip by seconds """
+        pass
+
+    def skip_frames(self, number_of_frames: int):
+        """ skip by how many frames +ve or -ve """
+
+        if number_of_frames < 0 and (self.frame_number - number_of_frames) > 0:
+            self.frame_number -= number_of_frames
+        
+        elif number_of_frames > 0 and (self.frame_number + number_of_frames) > len(self.image_sequence):
+            self.frame_number += number_of_frames
+
+    def _start_play(self):
+        
+        # print(self.frame_number)
+        if self.playing and self.frame_number < len(self.image_sequence):
+            
+            self.current_img = self.image_sequence[self.frame_number]
+
+            if self.scaled:
+                self.current_img = self.current_img.resize((self.winfo_width(), self.winfo_height()))
+                self.image_sequence[self.frame_number] = self.current_img
+            
+            self.current_imgtk = ImageTk.PhotoImage(self.current_img)
+            self.config(image=self.current_imgtk)
+            self.frame_number += 1
+
+        if self.playing:  # This is seperate block as it has to keep checking if new frame has been appended
+            self.after(1000//self._frame_rate, self._start_play)
+
+
+root = tk.Tk()
+
+tkvideo = TkinterVideo(master=root, set_scaled=True)
+tkvideo.load(r"sampledata\samplevideo.mp4")
+tkvideo.pack(expand=True, fill="both")
+
+tkvideo.play()
+
+root.mainloop()
+
