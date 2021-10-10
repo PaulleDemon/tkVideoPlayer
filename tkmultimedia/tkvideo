@@ -133,12 +133,17 @@ class TkinterVideo(tk.Label):
         now = time.time_ns() //  1_000_000  # time in milliseconds
         then = now
         print("updating...")
+        
+        test_time = time.time()
+        previous_time = test_time
+
         while self._playing:
             
             # if self._frame_number >= len(self.image_sequence):
             #     break
+           
             now = time.time_ns() //  1_000_000
-            delta = now - then
+            delta = now - then  # time difference between current frame and previous frame
             then = now
 
             if delta == 0:
@@ -152,9 +157,20 @@ class TkinterVideo(tk.Label):
                 self.current_img = self.image_sequence[self._frame_number].copy()
                 self._frame_number += 1
                 self.event_generate("<<FrameGenerated>>")
+                if self._frame_number % 30 == 0:
+                    test_time = time.time()
+                    print("Frame Reached: ", self._frame_number, self.frame_rate(), test_time-previous_time)
+                    previous_time = test_time
             
-            time.sleep(1/(self._frame_rate * delta))
+            # print(delta/1000, 1/self._frame_rate)
+            # time.sleep(abs(1/(self._frame_rate)))
+                    if delta/1000 >= 1/self._frame_rate:
+                        continue
 
+                    time.sleep((delta/1000)+((1/self._frame_rate) - (delta/1000)))
+                    continue
+
+                time.sleep(0.0001)
 
         self._playing = False
         self._paused = True
@@ -176,7 +192,8 @@ class TkinterVideo(tk.Label):
 root = tk.Tk()
 
 tkvideo = TkinterVideo(master=root, set_scaled=False, pre_load=False)
-tkvideo.load(r"sampledata/samplevideo.mp4")
+# tkvideo.load(r"C:\Users\Paul\Videos\VID-20180328-WA0050.mp4")
+tkvideo.load(r"sampledata\samplevideo.mp4")
 tkvideo.pack(expand=True, fill="both")
 
 tkvideo.play()
