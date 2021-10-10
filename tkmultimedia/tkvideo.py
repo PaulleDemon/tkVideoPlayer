@@ -6,6 +6,7 @@ from PIL import ImageTk, Image
 from typing import Tuple
 
 
+# todo: try directly playing the file like container.decode(video=0)[self._frame_number].to_image
 class TkinterVideo(tk.Label):
 
     def __init__(self, scaled: bool = False, pre_load: bool = False, *args, **kwargs):
