@@ -24,6 +24,7 @@ class TkinterVideo(tk.Label):
 
         self._current_size = (50, 50)
 
+        self._video_duration = 0
         self._playing_thread = None
         self.preload = pre_load
         self._loaded = False
@@ -44,7 +45,7 @@ class TkinterVideo(tk.Label):
     def resize_event(self, event):
 
         self._current_size = event.width, event.height
-        print(self.current_img)
+
         if self._paused and self.current_img:
             self.current_img = self.video_frames[self._frame_number].to_image().copy().resize(self._current_size)
             self.current_imgtk = ImageTk.PhotoImage(self.current_img)
@@ -53,7 +54,7 @@ class TkinterVideo(tk.Label):
     def _set_frame_size(self, event=None):
 
         self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._frame_size, (255, 0, 0, 0)))
-        self.config(width=self._frame_size[0], height=self._frame_size[1], image=self.current_imgtk)
+        self.config(width=150, height=100, image=self.current_imgtk)
 
     def _load(self, file_path: str):
         """ loads the frames from a thread """
@@ -62,7 +63,14 @@ class TkinterVideo(tk.Label):
             with av.open(file_path) as container:
                 self._frame_rate = int(container.streams.video[0].average_rate)
                 self._frame_size = (container.streams.video[0].width, container.streams.video[0].height)
-                self._set_frame_size()
+                # self._video_duration = container.streams.video[0].duration
+                self._video_duration = float(container.streams.video[0].duration * container.streams.video[0].time_base)
+
+                self.event_generate("<<Duration>>")
+                print("DURATION: ", self._video_duration)
+
+                if self.scaled:
+                    self._set_frame_size()
 
                 if self.preload:
                     self.image_sequence = [frame.to_image() for frame in container.decode(video=0)]
@@ -97,6 +105,10 @@ class TkinterVideo(tk.Label):
         """ returns whether the video has been loaded """
         return self._loaded
 
+    def duration(self) -> int:
+        """ returns video duration """
+        return self._video_duration
+
     def frame_size(self) -> Tuple[int, int]:
         """ return frame dimension """
         return self._frame_size
@@ -113,7 +125,7 @@ class TkinterVideo(tk.Label):
         """ plays the loaded video """
 
         self._paused = False
-        print("Playing_thread: ", self._playing_thread)
+        print("Playing_thread: ", self._playing_thread, self._playing)
         if self._frame_number == len(self.image_sequence):
             self._frame_number = 0
 
@@ -125,14 +137,14 @@ class TkinterVideo(tk.Label):
             self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
             self._playing_thread.start()
 
-        else:
+        elif self.preload and not self._playing:
+            print("Playing...")
             self._paused = True
             self.bind("<<loaded>>", self._start_loaded)
 
     def _start_loaded(self, event):
 
         self._paused = False
-        # self._display_frame()
         if not self._playing:
             self._playing = True
             self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
@@ -153,9 +165,15 @@ class TkinterVideo(tk.Label):
         self._frame_number = 0
         self.image_sequence = []
 
+    def seek(self, time_stamp: float):
+
+        if 0 < time_stamp < self._video_duration:
+            self._frame_number = time_stamp * self._frame_rate
+
     def skip_sec(self, sec: int):
         """ skip by seconds """
-        pass
+        if 0 < self._frame_number + (sec*self._frame_rate) < len(self.video_frames):
+            self._frame_number = self._frame_number + (sec*self._frame_rate)
 
     def skip_frames(self, number_of_frames: int):
         """ skip by how many frames +ve or -ve """
@@ -165,6 +183,10 @@ class TkinterVideo(tk.Label):
 
         elif number_of_frames > 0 and (self._frame_number + number_of_frames) > len(self.image_sequence):
             self._frame_number += number_of_frames
+
+    def current_duration(self) -> float:
+        """ returns current playing duration in sec"""
+        return self._frame_number / self._frame_rate
 
     def _update_frames(self):
         """ updates frame from thread """
@@ -208,7 +230,9 @@ class TkinterVideo(tk.Label):
                 self.event_generate("<<FrameGenerated>>")
 
                 self._frame_number += 1
-                if self._frame_number % 30 == 0:
+
+                if self._frame_number % self._frame_rate == 0:
+                    self.event_generate("<<SecondChanged>>")
                     test_time = time.time()
                     print("Frame Reached: ", self._frame_number, self.frame_rate(), test_time - previous_time)
                     previous_time = test_time
