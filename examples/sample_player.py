@@ -29,7 +29,7 @@ load_btn.pack()
 play_pause_btn = tk.Button(root, text="Play", command=play_pause)
 play_pause_btn.pack()
 
-vid_player = TkinterVideo(master=root, scaled=True, pre_load=True)
+vid_player = TkinterVideo(master=root, scaled=True, pre_load=False)
 vid_player.pack(expand=True, fill="both")
 
 root.mainloop()
