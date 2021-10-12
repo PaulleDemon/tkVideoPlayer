@@ -24,6 +24,16 @@ Below are the methods of this library.
 | current_duration | -                                    | return's current duration of the video                                                                                                                                         |
 
 
+### Virtual events:
+
+| Virtual event          | Description                                                                                                         |
+|------------------------|---------------------------------------------------------------------------------------------------------------------|
+| \<\<loaded\>\>         | This event is generated when all the frames has been loaded into the memory.                                        |
+| \<\<Duration\>\>       | This event is generated when the video duration is found.                                                           |
+| \<\<SecondChanged\>\>  | This event is generated whenever a second in the video passes (calculated using frame_number%frame_rate==0).        |
+| \<\<FrameGenerated\>\> | This event is generated whenever there is a new frame available. (internal use, don't use this unless you want to). |
+| \<\<Ended\>\>          | This event is generated only when the video has ended.                                                              |
+
 <sub> 
 
 note:
