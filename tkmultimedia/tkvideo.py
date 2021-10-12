@@ -6,14 +6,12 @@ from PIL import ImageTk, Image
 from typing import Tuple
 
 
-# todo: try directly playing the file like container.decode(video=0)[self._frame_number].to_image
 class TkinterVideo(tk.Label):
 
-    def __init__(self, scaled: bool = False, pre_load: bool = False, fast_load=False, *args, **kwargs):
+    def __init__(self, scaled: bool = False, pre_load: bool = False, *args, **kwargs):
         super(TkinterVideo, self).__init__(*args, **kwargs)
 
         self.preload = pre_load
-        self.fast_load = fast_load
 
         self.image_sequence = []
         self.video_frames = []
@@ -48,13 +46,13 @@ class TkinterVideo(tk.Label):
 
         self._current_size = event.width, event.height
 
-        if self._paused and self.current_img:
+        if self._paused and self.current_img and self.scaled:
             self.current_img = self.video_frames[self._frame_number].to_image().copy().resize(self._current_size)
             self.current_imgtk = ImageTk.PhotoImage(self.current_img)
             self.config(image=self.current_imgtk)
 
     def _set_frame_size(self, event=None):
-
+        """ sets frame size to avoid unexpected resizing """
         self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._frame_size, (255, 0, 0, 0)))
         self.config(width=150, height=100, image=self.current_imgtk)
 
@@ -245,19 +243,5 @@ class TkinterVideo(tk.Label):
     def _display_frame(self, event):
         """ updates the image in the label """
 
-        # if self._playing and not self._paused:
-        # print("Updating....")
-
         self.current_imgtk = ImageTk.PhotoImage(self.current_img)
         self.config(image=self.current_imgtk)
-
-# root = tk.Tk()
-#
-# tkvideo = TkinterVideo(master=root, scaled=False, pre_load=False)
-# # tkvideo.load(r"C:\Users\Paul\Videos\VID-20180328-WA0050.mp4")
-# tkvideo.load(r"sampledata\samplevideo.mp4")
-# tkvideo.pack(expand=True, fill="both")
-#
-# tkvideo.play()
-#
-# root.mainloop()
