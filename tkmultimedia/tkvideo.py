@@ -9,8 +9,11 @@ from typing import Tuple
 # todo: try directly playing the file like container.decode(video=0)[self._frame_number].to_image
 class TkinterVideo(tk.Label):
 
-    def __init__(self, scaled: bool = False, pre_load: bool = False, *args, **kwargs):
+    def __init__(self, scaled: bool = False, pre_load: bool = False, fast_load=False, *args, **kwargs):
         super(TkinterVideo, self).__init__(*args, **kwargs)
+
+        self.preload = pre_load
+        self.fast_load = fast_load
 
         self.image_sequence = []
         self.video_frames = []
@@ -26,7 +29,6 @@ class TkinterVideo(tk.Label):
 
         self._video_duration = 0
         self._playing_thread = None
-        self.preload = pre_load
         self._loaded = False
         self._paused = True
         self._playing = False
@@ -76,15 +78,7 @@ class TkinterVideo(tk.Label):
                     self.image_sequence = [frame.to_image() for frame in container.decode(video=0)]
 
                 else:
-
-                    self.video_frames = container.decode(video=0)  # Used to speed up display
-                    print("Video_frame: ", type(self.video_frames))
-
-                    video_frame = (x for x in self.video_frames)
-                    print(video_frame)
-                    self.video_frames = list(self.video_frames)
-
-                    for frame in self.video_frames:
+                    for frame in container.decode(video=0):
                         self.image_sequence.append(frame.to_image())
 
             self._loaded = True
@@ -191,8 +185,6 @@ class TkinterVideo(tk.Label):
     def _update_frames(self):
         """ updates frame from thread """
 
-        time.sleep(0.005)
-
         now = time.time_ns() // 1_000_000  # time in milliseconds
         then = now
         print("updating...", len(self.video_frames) if isinstance(self.video_frames, list) else [])
@@ -201,13 +193,12 @@ class TkinterVideo(tk.Label):
         previous_time = test_time
 
         while self._playing:
-
-            if isinstance(self.video_frames, list) and self._frame_number >= len(self.video_frames)-1:
+            # print("Playing....", self._video_generated)
+            if self._loaded and self._frame_number >= len(self.image_sequence)-1:
                 print("Breaking,....")
                 break
 
-            if not self._paused and isinstance(self.video_frames, list) and \
-                    self._frame_number < len(self.video_frames) - 1:
+            if not self._paused and self._frame_number < len(self.image_sequence) - 1:
 
                 now = time.time_ns() // 1_000_000
                 delta = now - then  # time difference between current frame and previous frame
@@ -218,11 +209,7 @@ class TkinterVideo(tk.Label):
 
                 # print(delta, 1/self._frame_rate, 1/(self._frame_rate * delta))
 
-                if self._loaded:
-                    self.current_img = self.image_sequence[self._frame_number].copy()
-
-                else:
-                    self.current_img = self.video_frames[self._frame_number].to_image().copy()
+                self.current_img = self.image_sequence[self._frame_number].copy()
 
                 if self.scaled:
                     self.current_img = self.current_img.resize(self._current_size)
@@ -247,8 +234,8 @@ class TkinterVideo(tk.Label):
                 time.sleep((1 / self._frame_rate) - (delta / 1000))
                 continue
 
-            if not self.preload:
-                time.sleep(0.0015)
+            if not self._loaded:
+                time.sleep(0.0025)
 
         self._frame_number = 0
         self._playing = False

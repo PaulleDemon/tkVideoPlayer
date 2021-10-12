@@ -5,34 +5,40 @@ from tkmultimedia import TkinterVideo
 
 
 def update_duration(event):
-    print("UPdating duration")
+    """ updates the duration after finding the duration """
     end_time["text"] = str(datetime.timedelta(seconds=vid_player.duration()))
     progress_slider["to"] = vid_player.duration()
 
 
 def update_scale(event):
+    """ updates the scale value """
     progress_slider.set(vid_player.current_duration())
 
 
 def load_video():
+    """ loads the video """
     file_path = filedialog.askopenfilename()
 
     if file_path:
         vid_player.load(file_path)
 
-    progress_slider.config(to=0, from_=0)
-    progress_slider.set(0)
+        progress_slider.config(to=0, from_=0)
+        progress_slider.set(0)
 
 
 def seek(value):
+    """ used to seek a specific timeframe """
     vid_player.seek(int(value))
 
 
 def skip(value: int):
+    """ skip seconds """
     vid_player.skip_sec(value)
+    progress_slider.set(progress_slider.get() + value)
 
 
 def play_pause():
+    """ pauses and plays """
     if vid_player.is_paused():
         vid_player.play()
         play_pause_btn["text"] = "Pause"
@@ -43,6 +49,7 @@ def play_pause():
 
 
 def video_ended(event):
+    """ handle video ended """
     progress_slider.set(progress_slider["to"])
     play_pause_btn["text"] = "Play"
 
