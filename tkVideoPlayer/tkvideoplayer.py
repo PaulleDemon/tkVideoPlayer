@@ -86,7 +86,6 @@ class TkinterVideo(tk.Label):
 
                         self.image_sequence.append(frame.to_image())
 
-
             self._loaded = True
 
             self.event_generate("<<loaded>>")
@@ -118,7 +117,7 @@ class TkinterVideo(tk.Label):
         """ returns the current frame rate """
         return self._frame_rate
 
-    def frame(self) -> Tuple[tk.Image, int, float]:
+    def frame_info(self) -> Tuple[tk.Image, int, float]:
         """ return current frame image, frame number and frame rate  """
         return self.current_img, self._frame_number, self._frame_rate
 
@@ -162,6 +161,7 @@ class TkinterVideo(tk.Label):
         self._paused = True
         self._frame_number = 0
         self.image_sequence = []
+        self.load_thread = None
         self._loaded = False
 
     def seek(self, time_stamp: float):

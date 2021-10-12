@@ -1,7 +1,7 @@
 import datetime
 import tkinter as tk
 from tkinter import filedialog
-from tkmultimedia import TkinterVideo
+from tkVideoPlayer import TkinterVideo
 
 
 def update_duration(event):
