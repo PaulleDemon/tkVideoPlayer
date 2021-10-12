@@ -24,6 +24,7 @@ def load_video():
 
         progress_slider.config(to=0, from_=0)
         progress_slider.set(0)
+        play_pause_btn["text"] = "Play"
 
 
 def seek(value):
@@ -55,6 +56,7 @@ def video_ended(event):
 
 
 root = tk.Tk()
+root.title("Tkinter media")
 
 load_btn = tk.Button(root, text="Load", command=load_video)
 load_btn.pack()

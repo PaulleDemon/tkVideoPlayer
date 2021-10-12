@@ -1,9 +1,13 @@
 import av
 import time
 import threading
+import logging
 import tkinter as tk
 from PIL import ImageTk, Image
 from typing import Tuple
+
+
+logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used, make sure you did set range correctly
 
 
 class TkinterVideo(tk.Label):
@@ -33,7 +37,7 @@ class TkinterVideo(tk.Label):
 
         self.set_scaled(scaled)
 
-    def set_scaled(self, scaled=bool):
+    def set_scaled(self, scaled: bool):
         self.scaled = scaled
 
         if scaled:
@@ -47,7 +51,7 @@ class TkinterVideo(tk.Label):
         self._current_size = event.width, event.height
 
         if self._paused and self.current_img and self.scaled:
-            self.current_img = self.video_frames[self._frame_number].to_image().copy().resize(self._current_size)
+            self.current_img = self.image_sequence[self._frame_number].copy().resize(self._current_size)
             self.current_imgtk = ImageTk.PhotoImage(self.current_img)
             self.config(image=self.current_imgtk)
 
@@ -58,16 +62,15 @@ class TkinterVideo(tk.Label):
 
     def _load(self, file_path: str):
         """ loads the frames from a thread """
-        self._loaded = False
+        self.image_sequence = []
+        current_thread = threading.current_thread()
         try:
             with av.open(file_path) as container:
                 self._frame_rate = int(container.streams.video[0].average_rate)
                 self._frame_size = (container.streams.video[0].width, container.streams.video[0].height)
-                # self._video_duration = container.streams.video[0].duration
                 self._video_duration = float(container.streams.video[0].duration * container.streams.video[0].time_base)
 
                 self.event_generate("<<Duration>>")
-                print("DURATION: ", self._video_duration)
 
                 if self.scaled:
                     self._set_frame_size()
@@ -77,18 +80,24 @@ class TkinterVideo(tk.Label):
 
                 else:
                     for frame in container.decode(video=0):
+
+                        if self.load_thread != current_thread:
+                            return
+
                         self.image_sequence.append(frame.to_image())
 
+
             self._loaded = True
+
             self.event_generate("<<loaded>>")
-            print("LOADED")
 
         except Exception as e:
             raise e
 
-    def load(self, file_path=""):
+    def load(self, file_path="", pre_load: bool = False):
         """ loads the video and generates <<loaded>> event after loading """
-        self.image_sequence = []
+        self.preload = pre_load
+        self.stop()
 
         self.load_thread = threading.Thread(target=self._load, args=(file_path,), daemon=True)
         self.load_thread.start()
@@ -117,20 +126,17 @@ class TkinterVideo(tk.Label):
         """ plays the loaded video """
 
         self._paused = False
-        print("Playing_thread: ", self._playing_thread, self._playing)
         if self._frame_number == len(self.image_sequence):
             self._frame_number = 0
 
         self.bind("<<FrameGenerated>>", self._display_frame)
 
         if not self.preload and not self._playing:
-            print("PLAYING....")
             self._playing = True
             self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
             self._playing_thread.start()
 
         elif self.preload and not self._playing:
-            print("Playing...")
             self._paused = True
             self.bind("<<loaded>>", self._start_loaded)
 
@@ -156,6 +162,7 @@ class TkinterVideo(tk.Label):
         self._paused = True
         self._frame_number = 0
         self.image_sequence = []
+        self._loaded = False
 
     def seek(self, time_stamp: float):
 
@@ -164,8 +171,8 @@ class TkinterVideo(tk.Label):
 
     def skip_sec(self, sec: int):
         """ skip by seconds """
-        if 0 < self._frame_number + (sec*self._frame_rate) < len(self.video_frames):
-            self._frame_number = self._frame_number + (sec*self._frame_rate)
+        if 0 < self._frame_number + (sec * self._frame_rate) < len(self.video_frames):
+            self._frame_number = self._frame_number + (sec * self._frame_rate)
 
     def skip_frames(self, number_of_frames: int):
         """ skip by how many frames +ve or -ve """
@@ -185,27 +192,20 @@ class TkinterVideo(tk.Label):
 
         now = time.time_ns() // 1_000_000  # time in milliseconds
         then = now
-        print("updating...", len(self.video_frames) if isinstance(self.video_frames, list) else [])
-
-        test_time = time.time()
-        previous_time = test_time
 
         while self._playing:
-            # print("Playing....", self._video_generated)
-            if self._loaded and self._frame_number >= len(self.image_sequence)-1:
-                print("Breaking,....")
+
+            if self._loaded and self._frame_number >= len(self.image_sequence) - 1:
                 break
 
             if not self._paused and self._frame_number < len(self.image_sequence) - 1:
 
-                now = time.time_ns() // 1_000_000
+                now = time.time_ns() // 1_000_000 # time in milliseconds
                 delta = now - then  # time difference between current frame and previous frame
                 then = now
 
                 if delta == 0:
                     delta = 1
-
-                # print(delta, 1/self._frame_rate, 1/(self._frame_rate * delta))
 
                 self.current_img = self.image_sequence[self._frame_number].copy()
 
@@ -218,17 +218,10 @@ class TkinterVideo(tk.Label):
 
                 if self._frame_number % self._frame_rate == 0:
                     self.event_generate("<<SecondChanged>>")
-                    test_time = time.time()
-                    print("Frame Reached: ", self._frame_number, self.frame_rate(), test_time - previous_time)
-                    previous_time = test_time
-
-                # print(delta / 1000, 1 / self._frame_rate)
 
                 if delta / 1000 >= 1 / self._frame_rate:
                     continue
 
-                # print("Continuing...: ", (1 / self._frame_rate) - (delta / 1000))
-                # time.sleep((delta/1000)+((1/self._frame_rate) - (delta/1000)))
                 time.sleep((1 / self._frame_rate) - (delta / 1000))
                 continue
 

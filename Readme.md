@@ -1,6 +1,6 @@
 # Tkinter media player
 
-This is a simple library to play video files. This library also provides the ability to play , pause, 
+This is a simple library to play video files in tkinter. This library also provides the ability to play , pause, 
 skip and seek specific frames.
 
 ```python
@@ -16,3 +16,7 @@ root.mainloop()
 ```
 
 read the documentation [here]()
+
+### Example:
+
+
