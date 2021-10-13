@@ -7,18 +7,18 @@ from PIL import ImageTk, Image
 from typing import Tuple
 
 
-logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used, make sure you did set range correctly
+logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used, make sure you
+                                                                                            # did set range correctly
 
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, scaled: bool = False, pre_load: bool = False, *args, **kwargs):
+    def __init__(self, scaled: bool = True, pre_load: bool = False, *args, **kwargs):
         super(TkinterVideo, self).__init__(*args, **kwargs)
 
         self.preload = pre_load
 
         self.image_sequence = []
-        self.video_frames = []
         self.current_imgtk = None
         self.current_img = None
         self.load_thread = None
@@ -27,9 +27,11 @@ class TkinterVideo(tk.Label):
         self._frame_size = (100, 75)
         self._frame_number = 0
 
-        self._current_size = (50, 50)
+        self._current_size = ()
+        self.scaled = scaled
 
         self._video_duration = 0
+        self._video_frame_length = 0 # number of frames in the video
         self._playing_thread = None
         self._loaded = False
         self._paused = True
@@ -41,12 +43,17 @@ class TkinterVideo(tk.Label):
         self.scaled = scaled
 
         if scaled:
-            self.bind("<Configure>", self.resize_event)
+            self.bind("<Configure>", self._resize_event)
 
         else:
             self.unbind("<Configure>")
 
-    def resize_event(self, event):
+    def set_size(self, size: Tuple[int, int]):
+        """ sets the size of the video """
+        self.set_scaled(False)
+        self._current_size = size
+
+    def _resize_event(self, event):
 
         self._current_size = event.width, event.height
 
@@ -71,6 +78,8 @@ class TkinterVideo(tk.Label):
                 self._video_duration = float(container.streams.video[0].duration * container.streams.video[0].time_base)
 
                 self.event_generate("<<Duration>>")
+
+                self._video_frame_length = container.streams.video[0].frames
 
                 if self.scaled:
                     self._set_frame_size()
@@ -117,9 +126,9 @@ class TkinterVideo(tk.Label):
         """ returns the current frame rate """
         return self._frame_rate
 
-    def frame_info(self) -> Tuple[tk.Image, int, float]:
-        """ return current frame image, frame number and frame rate  """
-        return self.current_img, self._frame_number, self._frame_rate
+    def frame_info(self) -> Tuple[int, tk.Image, int, float]:
+        """ return number of frames, current frame image, frame number and frame rate  """
+        return  self._video_frame_length, self.current_img, self._frame_number, self._frame_rate
 
     def play(self):
         """ plays the loaded video """
@@ -171,8 +180,14 @@ class TkinterVideo(tk.Label):
 
     def skip_sec(self, sec: int):
         """ skip by seconds """
-        if 0 < self._frame_number + (sec * self._frame_rate) < len(self.video_frames):
+        if 0 < self._frame_number + (sec * self._frame_rate) < self._video_frame_length:
             self._frame_number = self._frame_number + (sec * self._frame_rate)
+
+        elif self._frame_number + (sec * self._frame_rate) < 0:
+            self._frame_number = 0
+
+        elif self._frame_number + (sec * self._frame_rate) > self._video_frame_length:
+            self._frame_number = self._video_frame_length - 1
 
     def skip_frames(self, number_of_frames: int):
         """ skip by how many frames +ve or -ve """
@@ -204,12 +219,9 @@ class TkinterVideo(tk.Label):
                 delta = now - then  # time difference between current frame and previous frame
                 then = now
 
-                if delta == 0:
-                    delta = 1
-
                 self.current_img = self.image_sequence[self._frame_number].copy()
 
-                if self.scaled:
+                if self.scaled or len(self._current_size) == 2:
                     self.current_img = self.current_img.resize(self._current_size)
 
                 self.event_generate("<<FrameGenerated>>")
@@ -222,11 +234,12 @@ class TkinterVideo(tk.Label):
                 if delta / 1000 >= 1 / self._frame_rate:
                     continue
 
+                print(delta)
                 time.sleep((1 / self._frame_rate) - (delta / 1000))
                 continue
 
             if not self._loaded:
-                time.sleep(0.0025)
+                time.sleep(0.0015)
 
         self._frame_number = 0
         self._playing = False

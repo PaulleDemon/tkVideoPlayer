@@ -86,7 +86,7 @@ root.title("Tkinter media")
 load_btn = tk.Button(root, text="Load", command=load_video)
 load_btn.pack()
 
-vid_player = TkinterVideo(master=root, scaled=True, pre_load=False)
+vid_player = TkinterVideo(scaled=True, pre_load=False, master=root)
 vid_player.pack(expand=True, fill="both")
 
 play_pause_btn = tk.Button(root, text="Play", command=play_pause)

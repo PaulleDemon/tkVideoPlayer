@@ -7,13 +7,14 @@ skip and seek specific frames.
 ```python
 import tkinter as tk
 from tkVideoPlayer import TkinterVideo
+
 root = tk.Tk()
 
-tkvideo = TkinterVideo(master=root, scaled=False, pre_load=False)
-tkvideo.load(r"samplevideo.mp4")
-tkvideo.pack(expand=True, fill="both")
+videoplayer = TkinterVideo(master=root, scaled=True, pre_load=False)
+videoplayer.load(r"samplevideo.mp4")
+videoplayer.pack(expand=True, fill="both")
 
-tkvideo.play() # play the video
+videoplayer.play() # play the video
 
 root.mainloop()
 ```
