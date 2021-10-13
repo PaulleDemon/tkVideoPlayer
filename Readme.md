@@ -22,7 +22,7 @@ root.mainloop()
 read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 
 #### Sample video player image:
-![sample player](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/sample_media_player.png)
+![sample player](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/sample_media_player.png?raw=True)
 
 This example source code can be found [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/examples/sample_player.py)
 

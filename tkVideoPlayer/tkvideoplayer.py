@@ -234,7 +234,6 @@ class TkinterVideo(tk.Label):
                 if delta / 1000 >= 1 / self._frame_rate:
                     continue
 
-                print(delta)
                 time.sleep((1 / self._frame_rate) - (delta / 1000))
                 continue
 
