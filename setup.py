@@ -5,7 +5,7 @@ with open("Readme.md", 'r') as f:
 
 setup(
     name='tkvideoplayer',
-    version='1.1.0',
+    version='1.2.0',
     description="This library helps you play videos in tkinter",
     license="MIT",
     long_description=long_description,
