@@ -19,11 +19,11 @@ videoplayer.play() # play the video
 root.mainloop()
 ```
 
-read the documentation [here](https://github.com/PaulleDemon/tkmultimedia/blob/master/Documentation.md)
+read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 
 #### Sample video player image:
-![sample player](https://github.com/PaulleDemon/tkmultimedia/blob/master/sample_media_player.png)
+![sample player](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/sample_media_player.png)
 
-This example source code can be found [here](https://github.com/PaulleDemon/tkmultimedia/blob/master/examples/sample_player.py)
+This example source code can be found [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/examples/sample_player.py)
 
 
