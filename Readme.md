@@ -32,8 +32,8 @@ This example source code can be found [here](https://github.com/PaulleDemon/tkVi
 
 **Other libraries you might be interested in:**
 
-* [tkstylesheet](https://pypi.org/project/tkstylesheet/) - helps you style your tkinter application using stylesheets.
+* [tkstylesheet](https://pypi.org/project/tkstylesheet/) - Helps you style your tkinter application using stylesheets.
 
-* [tkTimePicker](https://pypi.org/project/tkTimePicker/) - an easy-to-use timepicker.
+* [tkTimePicker](https://pypi.org/project/tkTimePicker/) - An easy-to-use timepicker.
 
-* [PyCollision](https://pypi.org/project/PyCollision/) - helps you draw hitboxes for 2d games
+* [PyCollision](https://pypi.org/project/PyCollision/) - Helps you draw hitboxes for 2d games.
