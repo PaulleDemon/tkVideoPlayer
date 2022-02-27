@@ -6,9 +6,10 @@ import tkinter as tk
 from PIL import ImageTk, Image
 from typing import Tuple
 
-
 logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used, make sure you
-                                                                                            # did set range correctly
+
+
+# did set range correctly
 
 
 class TkinterVideo(tk.Label):
@@ -31,13 +32,16 @@ class TkinterVideo(tk.Label):
         self.scaled = scaled
 
         self._video_duration = 0
-        self._video_frame_length = 0 # number of frames in the video
-        self._playing_thread = None
+        self._video_frame_length = 0  # number of frames in the video
+        self._playing_thread = None  # thread in which the video is being loaded
         self._loaded = False
         self._paused = True
         self._playing = False
+        self._stopped = False
 
         self.set_scaled(scaled)
+
+        self.bind("<Destroy>", lambda _: self.stop())  # stop the thread when the user closes or destroys the player
 
     def set_scaled(self, scaled: bool):
         self.scaled = scaled
@@ -71,13 +75,25 @@ class TkinterVideo(tk.Label):
         """ loads the frames from a thread """
         self.image_sequence = []
         current_thread = threading.current_thread()
+
         try:
             with av.open(file_path) as container:
-                self._frame_rate = int(container.streams.video[0].average_rate)
-                self._frame_size = (container.streams.video[0].width, container.streams.video[0].height)
-                self._video_duration = float(container.streams.video[0].duration * container.streams.video[0].time_base)
 
-                self.event_generate("<<Duration>>")
+                try:
+                    self._frame_rate = int(container.streams.video[0].average_rate)
+                except TypeError:
+                    raise TypeError("Not a video file")
+
+                self._frame_size = (container.streams.video[0].width, container.streams.video[0].height)
+
+                try:
+                    self._video_duration = float(
+                        container.streams.video[0].duration * container.streams.video[0].time_base)
+
+                except TypeError:  # the video duration cannot be found, this can happen for mkv files
+                    pass
+
+                self.event_generate("<<Duration>>")  # duration has been found
 
                 self._video_frame_length = container.streams.video[0].frames
 
@@ -88,12 +104,13 @@ class TkinterVideo(tk.Label):
                     self.image_sequence = [frame.to_image() for frame in container.decode(video=0)]
 
                 else:
-                    for frame in container.decode(video=0):
 
-                        if self.load_thread != current_thread:
+                    for frame in container.decode(video=0):  # container.decode yields generator
+
+                        if self.load_thread != current_thread or self._stopped:
                             return
 
-                        self.image_sequence.append(frame.to_image())
+                        self.image_sequence.append(frame.to_image()) # if memory error try setting height and with expcitily, refer pyav docs, to_image()
 
             self._loaded = True
 
@@ -106,7 +123,7 @@ class TkinterVideo(tk.Label):
         """ loads the video and generates <<loaded>> event after loading """
         self.preload = pre_load
         self.stop()
-
+        self._stopped = False
         self.load_thread = threading.Thread(target=self._load, args=(file_path,), daemon=True)
         self.load_thread.start()
 
@@ -128,12 +145,13 @@ class TkinterVideo(tk.Label):
 
     def frame_info(self) -> Tuple[int, tk.Image, int, float]:
         """ return number of frames, current frame image, frame number and frame rate  """
-        return  self._video_frame_length, self.current_img, self._frame_number, self._frame_rate
+        return self._video_frame_length, self.current_img, self._frame_number, self._frame_rate
 
     def play(self):
         """ plays the loaded video """
 
         self._paused = False
+        self._stopped = False
         if self._frame_number == len(self.image_sequence):
             self._frame_number = 0
 
@@ -152,6 +170,7 @@ class TkinterVideo(tk.Label):
 
         self._paused = False
         if not self._playing:
+            self._stopped = False
             self._playing = True
             self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
             self._playing_thread.start()
@@ -165,13 +184,13 @@ class TkinterVideo(tk.Label):
         self._paused = True
 
     def stop(self):
-        """ stop removes the loaded video and reset the frame_number"""
-        self.playing = False
+        """ stop removes the loaded video and reset the frame_number """
+        self._playing = False
         self._paused = True
         self._frame_number = 0
         self.image_sequence = []
-        self.load_thread = None
         self._loaded = False
+        self._stopped = True
 
     def seek(self, time_stamp: float):
 
@@ -215,7 +234,7 @@ class TkinterVideo(tk.Label):
 
             if not self._paused and self._frame_number < len(self.image_sequence) - 1:
 
-                now = time.time_ns() // 1_000_000 # time in milliseconds
+                now = time.time_ns() // 1_000_000  # time in milliseconds
                 delta = now - then  # time difference between current frame and previous frame
                 then = now
 
@@ -223,6 +242,9 @@ class TkinterVideo(tk.Label):
 
                 if self.scaled or len(self._current_size) == 2:
                     self.current_img = self.current_img.resize(self._current_size)
+
+                if self._stopped: # if the player has been stopped return
+                    return
 
                 self.event_generate("<<FrameGenerated>>")
 
@@ -234,16 +256,17 @@ class TkinterVideo(tk.Label):
                 if delta / 1000 >= 1 / self._frame_rate:
                     continue
 
-                time.sleep((1 / self._frame_rate) - (delta / 1000))
+                time.sleep((1 / self._frame_rate) - (delta / 1000))  # sleep to correct the fps
                 continue
 
             if not self._loaded:
-                time.sleep(0.0015)
+                time.sleep(0.0020)
 
         self._frame_number = 0
         self._playing = False
         self._paused = True
-        self.event_generate("<<Ended>>")
+
+        self.event_generate("<<Ended>>")  # this is generated when the video ends
 
     def _display_frame(self, event):
         """ updates the image in the label """
