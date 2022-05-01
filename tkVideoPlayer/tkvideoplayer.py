@@ -102,6 +102,7 @@ class TkinterVideo(tk.Label):
 
             
             try:
+                print("Time base: ", stream.time_base)
                 self._video_meta["duration"] = float(stream.duration * stream.time_base)
                 self.event_generate("<<Duration>>")  # duration has been found
 
@@ -111,6 +112,8 @@ class TkinterVideo(tk.Label):
             self._frame_number = 0
 
             self._set_frame_size()
+
+            self.stream_base = stream.time_base
 
             while self._load_thread == current_thread and not self._stop:
 
@@ -206,12 +209,27 @@ class TkinterVideo(tk.Label):
         self.current_imgtk = ImageTk.PhotoImage(self._current_img)
         self.config(image=self.current_imgtk)
 
+    def _seek(self, event):
+        print()
+        self.play()
+        self.pause()
+        
+        while not self._container:
+            continue
+        
+        
+        self.play()
+
     def seek(self, sec: int):
         """ seeks to specific time""" 
         
         if self._container:
-            self._frame_number = self._video_meta["framerate"] * sec
-            print("SEEKED", self._frame_number, sec)
-            self._container.seek(sec, whence='time', backward=True, any_frame=True)
+            self._frame_number = self._video_meta["framerate"] * 12
+            print("SEEKED", self._container.duration)
+            # self._container.seek(self._container.duration//2 , whence='time', backward=True, any_frame=False)
+            self._container.seek(sec*1000000 , whence='time', backward=True, any_frame=False) # seek time is expressed in av.timebase
+
+            
+            # self.bind("<<Ended>>", self._seek)
 
     
