@@ -9,11 +9,10 @@ from typing import Tuple, Dict
 
 logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used
 
-#FIXME: sometimes there is a segmentation fault when seeking specific second
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, master, scaled: bool = True, *args, **kwargs):
+    def __init__(self, master, scaled: bool = True, consistant_frame_rate=True, *args, **kwargs):
         super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
         self.path = ""
@@ -21,6 +20,8 @@ class TkinterVideo(tk.Label):
 
         self._paused = True
         self._stop = True
+
+        self.consistant_frame_rate = consistant_frame_rate # tries to keep the frame rate consistant by skipping over a few frames
 
         self._container = None
 
@@ -34,8 +35,7 @@ class TkinterVideo(tk.Label):
         self._seek = False
         self._seek_sec = 0
 
-        self._video_meta = {
-            "file": "",
+        self._video_info = {
             "duration": 0, # duration of the video
             "framerate": 0, # frame rate of the video
             "framesize": (0, 0) # tuple containing frame height and width of the video
@@ -75,9 +75,9 @@ class TkinterVideo(tk.Label):
     def _set_frame_size(self, event=None):
         """ sets frame size to avoid unexpected resizing """
 
-        self._video_meta["framesize"] = (self._container.streams.video[0].width, self._container.streams.video[0].height)
+        self._video_info["framesize"] = (self._container.streams.video[0].width, self._container.streams.video[0].height)
 
-        self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._video_meta["framesize"], (255, 0, 0, 0)))
+        self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._video_info["framesize"], (255, 0, 0, 0)))
         self.config(width=150, height=100, image=self.current_imgtk)
 
     def _load(self, path):
@@ -96,7 +96,7 @@ class TkinterVideo(tk.Label):
             stream = self._container.streams.video[0]
 
             try:
-                self._video_meta["framerate"] = int(stream.average_rate)
+                self._video_info["framerate"] = int(stream.average_rate)
 
             except TypeError:
                 raise TypeError("Not a video file")
@@ -104,7 +104,7 @@ class TkinterVideo(tk.Label):
             
             try:
 
-                self._video_meta["duration"] = float(stream.duration * stream.time_base)
+                self._video_info["duration"] = float(stream.duration * stream.time_base)
                 self.event_generate("<<Duration>>")  # duration has been found
 
             except TypeError:  # the video duration cannot be found, this can happen for mkv files
@@ -116,16 +116,27 @@ class TkinterVideo(tk.Label):
 
             self.stream_base = stream.time_base
 
+            now = time.time_ns() // 1_000_000  # time in milliseconds
+            then = now
+
             while self._load_thread == current_thread and not self._stop:
                 
                 if self._seek: # seek to specific second
                     self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=False) # the seek time is given in av.time_base, the multiplication is to correct the frame
                     self._seek = False
-                    self._frame_number = self._video_meta["framerate"] * self._seek_sec
+                    self._frame_number = self._video_info["framerate"] * self._seek_sec
 
                     self._seek_sec = 0
 
                 if self._paused:
+                    continue
+
+                now = time.time_ns() // 1_000_000  # time in milliseconds
+                delta = now - then  # time difference between current frame and previous frame
+                then = now
+
+                if self.consistant_frame_rate and (delta / 1000 >= 1 / self._video_info["framerate"]):
+                    print("Skipping", delta)
                     continue
                 
                 try:
@@ -139,8 +150,11 @@ class TkinterVideo(tk.Label):
             
                     self.event_generate("<<FrameGenerated>>")
 
-                    if self._frame_number % self._video_meta["framerate"] == 0:
+                    if self._frame_number % self._video_info["framerate"] == 0:
                         self.event_generate("<<SecondChanged>>")
+
+                    # time.sleep((1 / self._video_meta["framerate"]) - (delta / 1000))
+
 
                 except (StopIteration, av.error.EOFError):
                     break
@@ -191,7 +205,7 @@ class TkinterVideo(tk.Label):
 
     def video_info(self) -> Dict:
         """ returns dict containing duration, frame_rate, file"""
-        return self._video_meta
+        return self._video_info
 
     def metadata(self) -> Dict:
         """ returns metadata if available """
@@ -208,6 +222,10 @@ class TkinterVideo(tk.Label):
         """ returns current playing duration in sec """
         return self._time_stamp
     
+    def current_img(self) -> Image:
+        """ returns current frame image """
+        return self._current_img
+
     def _display_frame(self, event):
         """ displays the frame on the label """
 

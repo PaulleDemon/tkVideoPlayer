@@ -10,7 +10,7 @@ from tkVideoPlayer import TkinterVideo
 
 root = tk.Tk()
 
-videoplayer = TkinterVideo(master=root, scaled=True, pre_load=False)
+videoplayer = TkinterVideo(master=root, scaled=True)
 videoplayer.load(r"samplevideo.mp4")
 videoplayer.pack(expand=True, fill="both")
 
@@ -19,11 +19,11 @@ videoplayer.play() # play the video
 root.mainloop()
 ```
 
-> Note: the master argument has to be explicitly set, you cannot use `TkinterVideo(root)`, 
-> instead you must use `TkinterVideo(master=root)`.
+Features include sekking to a time stamp, pause/play, getting video meta data etc.
 
 read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 
+> Please immediately upgrade to the latest version if you are using version 1.3 or below
 #### Sample video player made using tkVideoPlayer:
 ![Sample player](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/videoplayer_screenshot.png?raw=True)
 

@@ -6,30 +6,23 @@ Below are the methods of this library.
 
 | Methods          | Parameters                           | Description                                                                                                                                                                                   |
 |------------------|--------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| \_\_init\_\_     | scaled(bool), pre_load(bool)=False   | The scale parameter scales the video to the label size.  The pre_load parameter loads the video to memory first then plays  (pre_load not recommended for large videos, keep it False).       |
+| \_\_init\_\_     | scaled(bool), consistant_frame_rate(bool)=True   | The scale parameter scales the video to the label size.  The consistant_frame_rate parameter skips frames to keep the framerate consistant       |
 | set_scaled       | -                                    | scales the video to the label size.                                                                                                                                                           |
 | load             | file_path(str), pre_load(bool)=False | starts loading the video in a thread.                                                                                                                                                         |
-| loaded           | -                                    | returns `True` if the video has been loaded to memory.                                                                                                                                        |
 | set_size         | size(Tuple[int, int])                | sets the size of the video frame. setting this will set scaled to `False`                                                                                                                     |
-| duration         | -                                    | return video duration in seconds.                                                                                                                                                             |
-| frame_size       | -                                    | returns the original dimension of the video.                                                                                                                                                  |
-| frame_rate       | -                                    | returns the frame rate of the video.                                                                                                                                                          |
-| frame_info       | -                                    | returns `tuple` containing current number of frames, frame image, current frame number  and frame rate.                                                                                       |
+| current_duration  | -                                    | return video duration in seconds.                                                                                                                                                             |
+| video_info       | -                                    | returns dictionary containing framerate, framesize, duration.|
 | play             | -                                    | Plays the video.                                                                                                                                                                              |
 | pause            | -                                    | Pauses the video                                                                                                                                                                              |
-| is_paused        | -                                    | returns if the video is currently paused.                                                                                                                                                     |
+| is_paused        | -                                    | returns if the video is currently paused.                                                                                                                                               
 | stop             | -                                    | stops the video and removes the video from memory. If you want to load a new video use `load` directly `stop` is not required in that case. If stop is called, you will have to reload file.  |
-| seek             | time_stamp(float)                    | moves to specific time stamp. provide time_stamp in seconds                                                                                                                                   |
-| skip_sec         | sec(int)                             | skips by few seconds. If you want to skip -5 sec provide -5 as argument.                                                                                                                      |
-| skip_frames      | number_of_frames(int)                | skips specific number of frames.                                                                                                                                                              |
-| current_duration | -                                    | return's current duration of the video                                                                                                                                                        |
-
+| seek             | time_stamp(int)                    | moves to specific time stamp. provide time_stamp in seconds                                           
+|
 
 ### Virtual events:
 
 | Virtual event          | Description                                                                                                         |
 |------------------------|---------------------------------------------------------------------------------------------------------------------|
-| \<\<loaded\>\>         | This event is generated when all the frames has been loaded into the memory.                                        |
 | \<\<Duration\>\>       | This event is generated when the video duration is found.                                                           |
 | \<\<SecondChanged\>\>  | This event is generated whenever a second in the video passes (calculated using frame_number%frame_rate==0).        |
 | \<\<FrameGenerated\>\> | This event is generated whenever there is a new frame available. (internal use, don't use this unless you want to). |
