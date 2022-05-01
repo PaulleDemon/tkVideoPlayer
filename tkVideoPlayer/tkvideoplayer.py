@@ -21,7 +21,7 @@ class TkinterVideo(tk.Label):
         self.path = ""
         self._load_thread = None
 
-        self._pause = True
+        self._paused = True
         self._stop = True
 
         self._container = None
@@ -29,17 +29,39 @@ class TkinterVideo(tk.Label):
         self._current_img = None
         self._current_frame_Tk = None
         self._frame_number = 0
+        self._time_stamp = 0
+
+        self._current_frame_size = (0, 0)
 
         self._video_meta = {
             "file": "",
-            "duration": 0,
-            "framerate": 0,
+            "duration": 0, # duration of the video
+            "framerate": 0, # frame rate of the video
+            "framesize": (0, 0) # tuple containing frame height and width of the video
 
-        }
+        }   
+
+        self.set_scaled(scaled)
+
 
         self.bind("<<Destroy>>", self.stop)
         self.bind("<<FrameGenerated>>", self._display_frame)
     
+    def set_size(self, size: Tuple[int, int]):
+        """ sets the size of the video """
+        self.set_scaled(False)
+        self._current_frame_size = size
+
+    def _resize_event(self, event):
+
+        self._current_frame_size = event.width, event.height
+
+        if self._paused and self._current_img and self.scaled:
+            proxy_img = self._current_img.copy().resize(self._current_frame_size)
+            self._current_imgtk = ImageTk.PhotoImage(proxy_img)
+            self.config(image=self._current_imgtk)
+
+
     def set_scaled(self, scaled: bool):
         self.scaled = scaled
 
@@ -47,80 +69,149 @@ class TkinterVideo(tk.Label):
             self.bind("<Configure>", self._resize_event)
 
         else:
-            self.unbind("<Configure>", self._resize_event)
+            self.unbind("<Configure>")
+
+    def _set_frame_size(self, event=None):
+        """ sets frame size to avoid unexpected resizing """
+
+        self._video_meta["framesize"] = (self._container.streams.video[0].width, self._container.streams.video[0].height)
+
+        self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._video_meta["framesize"], (255, 0, 0, 0)))
+        self.config(width=150, height=100, image=self.current_imgtk)
 
     def _load(self, path):
         """ load's file from a thread """
 
         current_thread = threading.current_thread()
-        self._container = av.open(path)
 
-        try:
-            self._video_meta["frame_rate"] = int(self._container.streams.video[0].average_rate)
+        with av.open(path) as self._container:
 
-        except TypeError:
-            raise TypeError("Not a video file")
+            self._container.streams.video[0].thread_type = "AUTO"
+            
+            # print(self._container.duration)
+            self._container.fast_seek = True
+            self._container.discard_corrupt = True
 
-        
-        try:
-            self._video_meta["duration"] = float(
-                self._container.streams.video[0].duration * self._container.streams.video[0].time_base)
+            stream = self._container.streams.video[0]
 
-        except TypeError:  # the video duration cannot be found, this can happen for mkv files
-            pass
+            try:
+                self._video_meta["framerate"] = int(stream.average_rate)
+
+            except TypeError:
+                raise TypeError("Not a video file")
 
             
-        for frame_number, frame in enumerate(self._container.decode(video=0)):  # container.decode yields generator
+            try:
+                self._video_meta["duration"] = float(stream.duration * stream.time_base)
+                self.event_generate("<<Duration>>")  # duration has been found
 
-            if self._load_thread != current_thread or self._stop:
-                break
+            except TypeError:  # the video duration cannot be found, this can happen for mkv files
+                pass
 
-            self._current_img = frame.to_image() # if memory error try setting height and with expcitily, refer pyav docs, to_image()
+            self._frame_number = 0
 
-            self._frame_number = frame_number
-            self.event_generate("<<FrameGenerated>>")
-        
-        self._container.close()
+            self._set_frame_size()
+
+            while self._load_thread == current_thread and not self._stop:
+
+                if self._paused:
+                    continue
+                
+                try:
+                    frame = next(self._container.decode(video=0))
+
+                    self._time_stamp = float(frame.pts * stream.time_base)
+
+                    self._current_img = frame.to_image()
+
+                    self._frame_number += 1
+            
+                    self.event_generate("<<FrameGenerated>>")
+
+                    if self._frame_number % self._video_meta["framerate"] == 0:
+                        self.event_generate("<<SecondChanged>>")
+
+                except (StopIteration, av.error.EOFError):
+                    break
+                    
+                except tk.TclError:
+                    break
+
         self._frame_number = 0
-        self._playing = False
         self._paused = True
-        self.event_generate("<<Ended>>")  # this is generated when the video ends
+        self._load_thread = None
+
+        self._container = None
+        
+        try:
+            self.event_generate("<<Ended>>")  # this is generated when the video ends
+
+        except tk.TclError:
+            pass
 
     def load(self, path: str):
         """ loads the file from the given path """
-
+        self.path = path
         self._load_thread = threading.Thread(target=self._load, args=(path, ), daemon=True)
         self._load_thread.start()
 
     def stop(self):
         """ stops reading the file """
-        self._pause = True
+        self._paused = True
         self._stop = True
 
     def pause(self):
         """ pauses the video file """
-        self._pause = True
+        self._paused = True
 
     def play(self):
         """ plays the video file """
-        self._pause = False
+        self._paused = False
         self._stop = False
+
+        if not self._load_thread:
+            print("loading new thread...")
+            self._load_thread = threading.Thread(target=self._load,  args=(self.path, ), daemon=True)
+            self._load_thread.start()
+
+    def is_paused(self):
+        """ returns if the video is paused """
+        return self._paused
 
     def video_info(self) -> Dict:
         """ returns dict containing duration, frame_rate, file"""
         return self._video_meta
+
+    def metadata(self) -> Dict:
+        """ returns metadata if available """
+        if self._container:
+            return self._container.metadata
+
+        return {}
 
     def current_frame_number(self) -> int:
         """ return current frame number """
         return self._frame_number
 
     def current_duration(self) -> float:
-        """ returns current playing duration in sec"""
-        return self._frame_number / self._video_meta["framerate"]
-
+        """ returns current playing duration in sec """
+        return self._time_stamp
     
     def _display_frame(self, event):
         """ displays the frame on the label """
 
+        if self.scaled:
+            self._current_img =  self._current_img.resize(self._current_frame_size)
+
         self.current_imgtk = ImageTk.PhotoImage(self._current_img)
         self.config(image=self.current_imgtk)
+
+    def seek(self, sec: int):
+        """ seeks to specific time""" 
+        
+        if self._container:
+            self._frame_number = self._video_meta["framerate"] * sec
+            print("SEEKED", self._frame_number, sec)
+            self._container.seek(sec, whence='time', backward=True, any_frame=True)
+
+    
