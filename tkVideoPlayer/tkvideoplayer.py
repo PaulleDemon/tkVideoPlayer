@@ -7,11 +7,9 @@ import tkinter as tk
 from PIL import ImageTk, Image
 from typing import Tuple, Dict
 
-logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used, make sure you
+logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used
 
-
-# did set range correctly
-
+#FIXME: sometimes there is a segmentation fault when seeking specific second
 
 class TkinterVideo(tk.Label):
 
@@ -32,6 +30,9 @@ class TkinterVideo(tk.Label):
         self._time_stamp = 0
 
         self._current_frame_size = (0, 0)
+
+        self._seek = False
+        self._seek_sec = 0
 
         self._video_meta = {
             "file": "",
@@ -102,7 +103,7 @@ class TkinterVideo(tk.Label):
 
             
             try:
-                print("Time base: ", stream.time_base)
+
                 self._video_meta["duration"] = float(stream.duration * stream.time_base)
                 self.event_generate("<<Duration>>")  # duration has been found
 
@@ -116,6 +117,13 @@ class TkinterVideo(tk.Label):
             self.stream_base = stream.time_base
 
             while self._load_thread == current_thread and not self._stop:
+                
+                if self._seek: # seek to specific second
+                    self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=False) # the seek time is given in av.time_base, the multiplication is to correct the frame
+                    self._seek = False
+                    self._frame_number = self._video_meta["framerate"] * self._seek_sec
+
+                    self._seek_sec = 0
 
                 if self._paused:
                     continue
@@ -173,7 +181,7 @@ class TkinterVideo(tk.Label):
         self._stop = False
 
         if not self._load_thread:
-            print("loading new thread...")
+            # print("loading new thread...")
             self._load_thread = threading.Thread(target=self._load,  args=(self.path, ), daemon=True)
             self._load_thread.start()
 
@@ -209,27 +217,11 @@ class TkinterVideo(tk.Label):
         self.current_imgtk = ImageTk.PhotoImage(self._current_img)
         self.config(image=self.current_imgtk)
 
-    def _seek(self, event):
-        print()
-        self.play()
-        self.pause()
-        
-        while not self._container:
-            continue
-        
-        
-        self.play()
-
     def seek(self, sec: int):
         """ seeks to specific time""" 
-        
-        if self._container:
-            self._frame_number = self._video_meta["framerate"] * 12
-            print("SEEKED", self._container.duration)
-            # self._container.seek(self._container.duration//2 , whence='time', backward=True, any_frame=False)
-            self._container.seek(sec*1000000 , whence='time', backward=True, any_frame=False) # seek time is expressed in av.timebase
 
+        self._seek = True
+        self._seek_sec = sec            
             
-            # self.bind("<<Ended>>", self._seek)
 
     
