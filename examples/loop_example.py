@@ -9,8 +9,8 @@ def loop(e):
 
 root = tk.Tk()
 
-tkvideo = TkinterVideo(scaled=True, pre_load=False, master=root)
-tkvideo.load(r"../sampledata/sample_m4v.m4v")
+tkvideo = TkinterVideo(scaled=True, master=root)
+tkvideo.load(r"sample_m4v.m4v")
 tkvideo.pack(expand=True, fill="both")
 tkvideo.play() # play the video
 tkvideo.bind("<<Ended>>", loop) # when the video ends calls the loop function

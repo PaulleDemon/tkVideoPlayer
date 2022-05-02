@@ -4,44 +4,63 @@ import threading
 import logging
 import tkinter as tk
 from PIL import ImageTk, Image
-from typing import Tuple
+from typing import Tuple, Dict
 
-logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used, make sure you
-
-
-# did set range correctly
+logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used
 
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, scaled: bool = True, pre_load: bool = False, *args, **kwargs):
-        super(TkinterVideo, self).__init__(*args, **kwargs)
+    def __init__(self, master, scaled: bool = True, consistant_frame_rate=True, *args, **kwargs):
+        super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
-        self.preload = pre_load
+        self.path = ""
+        self._load_thread = None
 
-        self.image_sequence = []
-        self.current_imgtk = None
-        self.current_img = None
-        self.load_thread = None
-
-        self._frame_rate = 1
-        self._frame_size = (100, 75)
-        self._frame_number = 0
-
-        self._current_size = ()
-        self.scaled = scaled
-
-        self._video_duration = 0
-        self._video_frame_length = 0  # number of frames in the video
-        self._playing_thread = None  # thread in which the video is being loaded
-        self._loaded = False
         self._paused = True
-        self._playing = False
-        self._stopped = False
+        self._stop = True
+
+        self.consistant_frame_rate = consistant_frame_rate # tries to keep the frame rate consistant by skipping over a few frames
+
+        self._container = None
+
+        self._current_img = None
+        self._current_frame_Tk = None
+        self._frame_number = 0
+        self._time_stamp = 0
+
+        self._current_frame_size = (0, 0)
+
+        self._seek = False
+        self._seek_sec = 0
+
+        self._video_info = {
+            "duration": 0, # duration of the video
+            "framerate": 0, # frame rate of the video
+            "framesize": (0, 0) # tuple containing frame height and width of the video
+
+        }   
 
         self.set_scaled(scaled)
 
-        self.bind("<Destroy>", lambda _: self.stop())  # stop the thread when the user closes or destroys the player
+
+        self.bind("<<Destroy>>", self.stop)
+        self.bind("<<FrameGenerated>>", self._display_frame)
+    
+    def set_size(self, size: Tuple[int, int]):
+        """ sets the size of the video """
+        self.set_scaled(False)
+        self._current_frame_size = size
+
+    def _resize_event(self, event):
+
+        self._current_frame_size = event.width, event.height
+
+        if self._paused and self._current_img and self.scaled:
+            proxy_img = self._current_img.copy().resize(self._current_frame_size)
+            self._current_imgtk = ImageTk.PhotoImage(proxy_img)
+            self.config(image=self._current_imgtk)
+
 
     def set_scaled(self, scaled: bool):
         self.scaled = scaled
@@ -52,224 +71,176 @@ class TkinterVideo(tk.Label):
         else:
             self.unbind("<Configure>")
 
-    def set_size(self, size: Tuple[int, int]):
-        """ sets the size of the video """
-        self.set_scaled(False)
-        self._current_size = size
-
-    def _resize_event(self, event):
-
-        self._current_size = event.width, event.height
-
-        if self._paused and self.current_img and self.scaled:
-            self.current_img = self.image_sequence[self._frame_number].copy().resize(self._current_size)
-            self.current_imgtk = ImageTk.PhotoImage(self.current_img)
-            self.config(image=self.current_imgtk)
-
     def _set_frame_size(self, event=None):
         """ sets frame size to avoid unexpected resizing """
-        self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._frame_size, (255, 0, 0, 0)))
+
+        self._video_info["framesize"] = (self._container.streams.video[0].width, self._container.streams.video[0].height)
+
+        self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._video_info["framesize"], (255, 0, 0, 0)))
         self.config(width=150, height=100, image=self.current_imgtk)
 
-    def _load(self, file_path: str):
-        """ loads the frames from a thread """
-        self.image_sequence = []
+    def _load(self, path):
+        """ load's file from a thread """
+
         current_thread = threading.current_thread()
 
-        try:
-            with av.open(file_path) as container:
+        with av.open(path) as self._container:
 
-                try:
-                    self._frame_rate = int(container.streams.video[0].average_rate)
-                except TypeError:
-                    raise TypeError("Not a video file")
+            self._container.streams.video[0].thread_type = "AUTO"
+            
+            # print(self._container.duration)
+            self._container.fast_seek = True
+            self._container.discard_corrupt = True
 
-                self._frame_size = (container.streams.video[0].width, container.streams.video[0].height)
+            stream = self._container.streams.video[0]
 
-                try:
-                    self._video_duration = float(
-                        container.streams.video[0].duration * container.streams.video[0].time_base)
+            try:
+                self._video_info["framerate"] = int(stream.average_rate)
 
-                except TypeError:  # the video duration cannot be found, this can happen for mkv files
-                    pass
+            except TypeError:
+                raise TypeError("Not a video file")
 
+            try:
+                self.event_generate("<<Loaded>>") # generated when the video file is opened
+            
+            except tk.TclError:
+                pass
+            
+            try:
+
+                self._video_info["duration"] = float(stream.duration * stream.time_base)
                 self.event_generate("<<Duration>>")  # duration has been found
 
-                self._video_frame_length = container.streams.video[0].frames
+            except (TypeError, tk.TclError):  # the video duration cannot be found, this can happen for mkv files
+                pass
 
-                if self.scaled:
-                    self._set_frame_size()
-
-                if self.preload:
-                    self.image_sequence = [frame.to_image() for frame in container.decode(video=0)]
-
-                else:
-
-                    for frame in container.decode(video=0):  # container.decode yields generator
-
-                        if self.load_thread != current_thread or self._stopped:
-                            return
-
-                        self.image_sequence.append(frame.to_image()) # if memory error try setting height and with expcitily, refer pyav docs, to_image()
-
-            self._loaded = True
-
-            self.event_generate("<<loaded>>")
-
-        except Exception as e:
-            raise e
-
-    def load(self, file_path="", pre_load: bool = False):
-        """ loads the video and generates <<loaded>> event after loading """
-        self.preload = pre_load
-        self.stop()
-        self._stopped = False
-        self.load_thread = threading.Thread(target=self._load, args=(file_path,), daemon=True)
-        self.load_thread.start()
-
-    def loaded(self) -> bool:
-        """ returns whether the video has been loaded """
-        return self._loaded
-
-    def duration(self) -> int:
-        """ returns video duration """
-        return self._video_duration
-
-    def frame_size(self) -> Tuple[int, int]:
-        """ return frame dimension """
-        return self._frame_size
-
-    def frame_rate(self) -> float:
-        """ returns the current frame rate """
-        return self._frame_rate
-
-    def frame_info(self) -> Tuple[int, tk.Image, int, float]:
-        """ return number of frames, current frame image, frame number and frame rate  """
-        return self._video_frame_length, self.current_img, self._frame_number, self._frame_rate
-
-    def play(self):
-        """ plays the loaded video """
-
-        self._paused = False
-        self._stopped = False
-        if self._frame_number == len(self.image_sequence):
             self._frame_number = 0
 
-        self.bind("<<FrameGenerated>>", self._display_frame)
+            self._set_frame_size()
 
-        if not self.preload and not self._playing:
-            self._playing = True
-            self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
-            self._playing_thread.start()
+            self.stream_base = stream.time_base
 
-        elif self.preload and not self._playing:
-            self._paused = True
-            self.bind("<<loaded>>", self._start_loaded)
+            now = time.time_ns() // 1_000_000  # time in milliseconds
+            then = now
 
-    def _start_loaded(self, event):
+            while self._load_thread == current_thread and not self._stop:
+                if self._seek: # seek to specific second
+                    self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=False) # the seek time is given in av.time_base, the multiplication is to correct the frame
+                    self._seek = False
+                    self._frame_number = self._video_info["framerate"] * self._seek_sec
 
-        self._paused = False
-        if not self._playing:
-            self._stopped = False
-            self._playing = True
-            self._playing_thread = threading.Thread(target=self._update_frames, daemon=True)
-            self._playing_thread.start()
+                    self._seek_sec = 0
 
-    def is_paused(self) -> bool:
-        """ returns if the video is paused """
-        return self._paused
-
-    def pause(self):
-        """ pauses the video """
-        self._paused = True
-
-    def stop(self):
-        """ stop removes the loaded video and reset the frame_number """
-        self._playing = False
-        self._paused = True
-        self._frame_number = 0
-        self.image_sequence = []
-        self._loaded = False
-        self._stopped = True
-
-    def seek(self, time_stamp: float):
-
-        if 0 < time_stamp < self._video_duration:
-            self._frame_number = time_stamp * self._frame_rate
-
-    def skip_sec(self, sec: int):
-        """ skip by seconds """
-        if 0 < self._frame_number + (sec * self._frame_rate) < self._video_frame_length:
-            self._frame_number = self._frame_number + (sec * self._frame_rate)
-
-        elif self._frame_number + (sec * self._frame_rate) < 0:
-            self._frame_number = 0
-
-        elif self._frame_number + (sec * self._frame_rate) > self._video_frame_length:
-            self._frame_number = self._video_frame_length - 1
-
-    def skip_frames(self, number_of_frames: int):
-        """ skip by how many frames +ve or -ve """
-
-        if number_of_frames < 0 and (self._frame_number - number_of_frames) > 0:
-            self._frame_number -= number_of_frames
-
-        elif number_of_frames > 0 and (self._frame_number + number_of_frames) > len(self.image_sequence):
-            self._frame_number += number_of_frames
-
-    def current_duration(self) -> float:
-        """ returns current playing duration in sec"""
-        return self._frame_number / self._frame_rate
-
-    def _update_frames(self):
-        """ updates frame from thread """
-
-        now = time.time_ns() // 1_000_000  # time in milliseconds
-        then = now
-
-        while self._playing:
-
-            if self._loaded and self._frame_number >= len(self.image_sequence) - 1:
-                break
-
-            if not self._paused and self._frame_number < len(self.image_sequence) - 1:
+                if self._paused:
+                    time.sleep(0.0001) # to allow other threads to function better when its paused
+                    continue
 
                 now = time.time_ns() // 1_000_000  # time in milliseconds
                 delta = now - then  # time difference between current frame and previous frame
                 then = now
 
-                self.current_img = self.image_sequence[self._frame_number].copy()
-
-                if self.scaled or len(self._current_size) == 2:
-                    self.current_img = self.current_img.resize(self._current_size)
-
-                if self._stopped: # if the player has been stopped return
-                    return
-
-                self.event_generate("<<FrameGenerated>>")
-
-                self._frame_number += 1
-
-                if self._frame_number % self._frame_rate == 0:
-                    self.event_generate("<<SecondChanged>>")
-
-                if delta / 1000 >= 1 / self._frame_rate:
+                if self.consistant_frame_rate and (delta / 1000 >= 1 / self._video_info["framerate"]):
+                    # skips frames if to keep a consistant frame rate
                     continue
+                
+                try:
+                    frame = next(self._container.decode(video=0))
 
-                time.sleep((1 / self._frame_rate) - (delta / 1000))  # sleep to correct the fps
-                continue
+                    self._time_stamp = float(frame.pts * stream.time_base)
 
-            if not self._loaded:
-                time.sleep(0.0020)
+                    self._current_img = frame.to_image()
+
+                    self._frame_number += 1
+            
+                    self.event_generate("<<FrameGenerated>>")
+
+                    if self._frame_number % self._video_info["framerate"] == 0:
+                        self.event_generate("<<SecondChanged>>")
+
+                    # time.sleep((1 / self._video_meta["framerate"]) - (delta / 1000))
+
+
+                except (StopIteration, av.error.EOFError):
+                    break
+                    
+                except tk.TclError:
+                    break
 
         self._frame_number = 0
-        self._playing = False
+        self._paused = True
+        self._load_thread = None
+
+        self._container = None
+        
+        try:
+            self.event_generate("<<Ended>>")  # this is generated when the video ends
+
+        except tk.TclError:
+            pass
+
+    def load(self, path: str):
+        """ loads the file from the given path """
+        self.stop()
+        self.path = path
+
+    def stop(self):
+        """ stops reading the file """
+        self._paused = True
+        self._stop = True
+
+    def pause(self):
+        """ pauses the video file """
         self._paused = True
 
-        self.event_generate("<<Ended>>")  # this is generated when the video ends
+    def play(self):
+        """ plays the video file """
+        self._paused = False
+        self._stop = False
+
+        if not self._load_thread:
+            # print("loading new thread...")
+            self._load_thread = threading.Thread(target=self._load,  args=(self.path, ), daemon=True)
+            self._load_thread.start()
+
+    def is_paused(self):
+        """ returns if the video is paused """
+        return self._paused
+
+    def video_info(self) -> Dict:
+        """ returns dict containing duration, frame_rate, file"""
+        return self._video_info
+
+    def metadata(self) -> Dict:
+        """ returns metadata if available """
+        if self._container:
+            return self._container.metadata
+
+        return {}
+
+    def current_frame_number(self) -> int:
+        """ return current frame number """
+        return self._frame_number
+
+    def current_duration(self) -> float:
+        """ returns current playing duration in sec """
+        return self._time_stamp
+    
+    def current_img(self) -> Image:
+        """ returns current frame image """
+        return self._current_img
 
     def _display_frame(self, event):
-        """ updates the image in the label """
+        """ displays the frame on the label """
 
-        self.current_imgtk = ImageTk.PhotoImage(self.current_img)
+        if self.scaled or len(self._current_frame_size) == 2:
+            self._current_img =  self._current_img.resize(self._current_frame_size)
+
+        self.current_imgtk = ImageTk.PhotoImage(self._current_img)
         self.config(image=self.current_imgtk)
+
+    def seek(self, sec: int):
+        """ seeks to specific time""" 
+
+        self._seek = True
+        self._seek_sec = sec            
+            

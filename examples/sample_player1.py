@@ -22,6 +22,8 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# This is same as sample_player example but this doesn't makes use of control variable to update the slider
+
 
 import datetime
 import tkinter as tk
@@ -38,7 +40,7 @@ def update_duration(event):
 
 def update_scale(event):
     """ updates the scale value """
-    progress_value.set(vid_player.current_duration())
+    progress_slider.set(vid_player.current_duration())
 
 
 def load_video():
@@ -50,18 +52,18 @@ def load_video():
 
         progress_slider.config(to=0, from_=0)
         play_pause_btn["text"] = "Play"
-        progress_value.set(0)
+        progress_slider.set(0)
 
 
-def seek(value):
+def seek(event=None):
     """ used to seek a specific timeframe """
-    vid_player.seek(int(value))
+    vid_player.seek(int(progress_slider.get()))
 
 
 def skip(value: int):
     """ skip seconds """
     vid_player.seek(int(progress_slider.get())+value)
-    progress_value.set(progress_slider.get() + value)
+    progress_slider.set(progress_slider.get() + value)
 
 
 def play_pause():
@@ -100,10 +102,8 @@ skip_plus_5sec.pack(side="left")
 start_time = tk.Label(root, text=str(datetime.timedelta(seconds=0)))
 start_time.pack(side="left")
 
-progress_value = tk.IntVar(root)
-
-progress_slider = tk.Scale(root, variable=progress_value, from_=0, to=0, orient="horizontal", command=seek)
-# progress_slider.bind("<ButtonRelease-1>", seek)
+progress_slider = tk.Scale(root, from_=0, to=0, orient="horizontal")
+progress_slider.bind("<ButtonRelease-1>", seek)
 progress_slider.pack(side="left", fill="x", expand=True)
 
 end_time = tk.Label(root, text=str(datetime.timedelta(seconds=0)))
