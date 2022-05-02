@@ -15,14 +15,16 @@ Below are the methods of this library.
 | play             | -                                    | Plays the video.                                                                                                                                                                              |
 | pause            | -                                    | Pauses the video                                                                                                                                                                              |
 | is_paused        | -                                    | returns if the video is currently paused.                                                                                                                                               
-| stop             | -                                    | stops the video and removes the video from memory. If you want to load a new video use `load` directly `stop` is not required in that case. If stop is called, you will have to reload file.  |
+| stop             | -                                    | stops playing the file, closes the file.  |
 | seek             | time_stamp(int)                    | moves to specific time stamp. provide time_stamp in seconds                                           
+| metadata         | -                                  | returns meta information of the video if available in the form of dictionary                                           
 |
 
 ### Virtual events:
 
 | Virtual event          | Description                                                                                                         |
 |------------------------|---------------------------------------------------------------------------------------------------------------------|
+| \<\<Loaded\>\>       | This event is generated when the video file is opened.                                                           |
 | \<\<Duration\>\>       | This event is generated when the video duration is found.                                                           |
 | \<\<SecondChanged\>\>  | This event is generated whenever a second in the video passes (calculated using frame_number%frame_rate==0).        |
 | \<\<FrameGenerated\>\> | This event is generated whenever there is a new frame available. (internal use, don't use this unless you want to). |
@@ -37,4 +39,3 @@ And use `image_id = self.create_image()` use the image_id to update the image.
 
 </sub>
 
-> Note: Loading large files can be slow and might have lag

@@ -1,5 +1,4 @@
 import av
-import sys
 import time
 import threading
 import logging
@@ -101,13 +100,18 @@ class TkinterVideo(tk.Label):
             except TypeError:
                 raise TypeError("Not a video file")
 
+            try:
+                self.event_generate("<<Loaded>>") # generated when the video file is opened
+            
+            except tk.TclError:
+                pass
             
             try:
 
                 self._video_info["duration"] = float(stream.duration * stream.time_base)
                 self.event_generate("<<Duration>>")  # duration has been found
 
-            except TypeError:  # the video duration cannot be found, this can happen for mkv files
+            except (TypeError, tk.TclError):  # the video duration cannot be found, this can happen for mkv files
                 pass
 
             self._frame_number = 0
@@ -120,7 +124,6 @@ class TkinterVideo(tk.Label):
             then = now
 
             while self._load_thread == current_thread and not self._stop:
-                
                 if self._seek: # seek to specific second
                     self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=False) # the seek time is given in av.time_base, the multiplication is to correct the frame
                     self._seek = False
@@ -129,6 +132,7 @@ class TkinterVideo(tk.Label):
                     self._seek_sec = 0
 
                 if self._paused:
+                    time.sleep(0.0001) # to allow other threads to function better when its paused
                     continue
 
                 now = time.time_ns() // 1_000_000  # time in milliseconds
@@ -136,7 +140,7 @@ class TkinterVideo(tk.Label):
                 then = now
 
                 if self.consistant_frame_rate and (delta / 1000 >= 1 / self._video_info["framerate"]):
-                    print("Skipping", delta)
+                    # skips frames if to keep a consistant frame rate
                     continue
                 
                 try:
@@ -176,9 +180,8 @@ class TkinterVideo(tk.Label):
 
     def load(self, path: str):
         """ loads the file from the given path """
+        self.stop()
         self.path = path
-        self._load_thread = threading.Thread(target=self._load, args=(path, ), daemon=True)
-        self._load_thread.start()
 
     def stop(self):
         """ stops reading the file """
@@ -229,7 +232,7 @@ class TkinterVideo(tk.Label):
     def _display_frame(self, event):
         """ displays the frame on the label """
 
-        if self.scaled:
+        if self.scaled or len(self._current_frame_size) == 2:
             self._current_img =  self._current_img.resize(self._current_frame_size)
 
         self.current_imgtk = ImageTk.PhotoImage(self._current_img)
@@ -241,5 +244,3 @@ class TkinterVideo(tk.Label):
         self._seek = True
         self._seek_sec = sec            
             
-
-    
