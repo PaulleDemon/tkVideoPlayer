@@ -18,7 +18,6 @@ Below are the methods of this library.
 | stop             | -                                    | stops playing the file, closes the file.  |
 | seek             | time_stamp(int)                    | moves to specific time stamp. provide time_stamp in seconds                                           
 | metadata         | -                                  | returns meta information of the video if available in the form of dictionary                                           
-|
 
 ### Virtual events:
 
