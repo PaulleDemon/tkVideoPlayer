@@ -16,8 +16,8 @@ Below are the methods of this library.
 | pause            | -                                    | Pauses the video                                                                                                                                                                              |
 | is_paused        | -                                    | returns if the video is currently paused.                                                                                                                                               
 | stop             | -                                    | stops playing the file, closes the file.  |
-| seek             | time_stamp(int)                    | moves to specific time stamp. provide time_stamp in seconds                                           
-| metadata         | -                                  | returns meta information of the video if available in the form of dictionary                                           
+| seek             | sec(int)                             | moves to specific time stamp. provide time stamp in seconds                                           
+| metadata         | -                                    | returns meta information of the video if available in the form of dictionary                                           
 
 ### Virtual events:
 
