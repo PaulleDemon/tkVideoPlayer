@@ -1,7 +1,7 @@
 # TkVideoplayer
 
 This is a simple library to play video files in tkinter. This library also provides the ability to play, pause, 
-skip and seek specific frames.
+skip and seek to specific timestamps.
 
 #### Example:
 ```python
@@ -18,8 +18,6 @@ videoplayer.play() # play the video
 
 root.mainloop()
 ```
-
-Features include sekking to a time stamp, pause/play, getting video meta data etc.
 
 read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 

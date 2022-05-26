@@ -99,12 +99,6 @@ class TkinterVideo(tk.Label):
 
             except TypeError:
                 raise TypeError("Not a video file")
-
-            try:
-                self.event_generate("<<Loaded>>") # generated when the video file is opened
-            
-            except tk.TclError:
-                pass
             
             try:
 
@@ -119,6 +113,12 @@ class TkinterVideo(tk.Label):
             self._set_frame_size()
 
             self.stream_base = stream.time_base
+
+            try:
+                self.event_generate("<<Loaded>>") # generated when the video file is opened
+            
+            except tk.TclError:
+                pass
 
             now = time.time_ns() // 1_000_000  # time in milliseconds
             then = now
