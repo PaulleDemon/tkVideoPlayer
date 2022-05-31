@@ -6,10 +6,10 @@ Below are the methods of this library.
 
 | Methods          | Parameters                           | Description                                                                                                                                                                                   |
 |------------------|--------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| \_\_init\_\_     | scaled(bool), consistant_frame_rate(bool)=True   | The scale parameter scales the video to the label size.  The consistant_frame_rate parameter skips frames to keep the framerate consistant       |
-| set_scaled       | scaled(bool)                         | scales the video to the label size.                                                                                                                                                           |
+| \_\_init\_\_     | scaled(bool), consistant_frame_rate(bool)=True, keep_aspect(bool)=False   | The scale parameter scales the video to the label size.  The consistant_frame_rate parameter skips frames to keep the framerate consistant and keep_aspect keeps aspect ratio when resizing(note: It will not increase the size)       |
+| set_scaled       | scaled(bool), keep_aspect(bool)=False                         | scales the video to the label size.                                                                                                                                                           |
 | load             | file_path(str)                       | starts loading the video in a thread.                                                                                                                                                         |
-| set_size         | size(Tuple[int, int])                | sets the size of the video frame. setting this will set scaled to `False`                                                                                                                     |
+| set_size         | size(Tuple[int, int]), keep_aspect(bool)=False | sets the size of the video frame. setting this will set scaled to `False`                                                                                                                     |
 | current_duration  | -                                    | return video duration in seconds.                                                                                                                                                             |
 | video_info       | -                                    | returns dictionary containing framerate, framesize, duration.|
 | play             | -                                    | Plays the video.                                                                                                                                                                              |
@@ -17,7 +17,9 @@ Below are the methods of this library.
 | is_paused        | -                                    | returns if the video is currently paused.                                                                                                                                               
 | stop             | -                                    | stops playing the file, closes the file.  |
 | seek             | sec(int)                             | moves to specific time stamp. provide time stamp in seconds                                           
+| keep_aspect             | keep_aspect(bool)                            | keeps aspect ratio when resizing                                          
 | metadata         | -                                    | returns meta information of the video if available in the form of dictionary                                           
+| set_resampling_method|  method(int)                                   | By default the resampling method while resizing is NEAREST, changing this can affect how its resampled when image is resized, refer PIL documentation to read more (note: this can also affect the framerate of the video)|
 
 ### Virtual events:
 

@@ -3,7 +3,7 @@ import time
 import threading
 import logging
 import tkinter as tk
-from PIL import ImageTk, Image
+from PIL import ImageTk, Image, ImageOps
 from typing import Tuple, Dict
 
 logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used
@@ -11,7 +11,7 @@ logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecate
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, master, scaled: bool = True, consistant_frame_rate=True, *args, **kwargs):
+    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, *args, **kwargs):
         super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
         self.path = ""
@@ -42,34 +42,53 @@ class TkinterVideo(tk.Label):
         }   
 
         self.set_scaled(scaled)
+        self._keep_aspect_ratio = keep_aspect
+        self._resampling_method: int = Image.NEAREST
 
 
         self.bind("<<Destroy>>", self.stop)
         self.bind("<<FrameGenerated>>", self._display_frame)
     
-    def set_size(self, size: Tuple[int, int]):
+    def keep_aspect(self, keep_aspect: bool):
+        """ keeps the aspect ratio when resizing the image """
+        self._keep_aspect_ratio = keep_aspect
+
+    def set_resampling_method(self, method: int):
+        """ sets the resampling method when resizing """
+        self._resampling_method = method
+
+    def set_size(self, size: Tuple[int, int], keep_aspect: bool=False):
         """ sets the size of the video """
-        self.set_scaled(False)
+        self.set_scaled(False, self._keep_aspect_ratio)
         self._current_frame_size = size
+        self._keep_aspect_ratio = keep_aspect
 
     def _resize_event(self, event):
 
         self._current_frame_size = event.width, event.height
 
         if self._paused and self._current_img and self.scaled:
-            proxy_img = self._current_img.copy().resize(self._current_frame_size)
+            if self._keep_aspect_ratio:
+                proxy_img = ImageOps.contain(self._current_img.copy(), self._current_frame_size)
+
+            else:
+                proxy_img = self._current_img.copy().resize(self._current_frame_size)
+            
             self._current_imgtk = ImageTk.PhotoImage(proxy_img)
             self.config(image=self._current_imgtk)
 
 
-    def set_scaled(self, scaled: bool):
+    def set_scaled(self, scaled: bool, keep_aspect: bool = False):
         self.scaled = scaled
-
+        self._keep_aspect_ratio = keep_aspect
+        
         if scaled:
             self.bind("<Configure>", self._resize_event)
 
         else:
             self.unbind("<Configure>")
+            self._current_frame_size = self.video_info()["framesize"]
+
 
     def _set_frame_size(self, event=None):
         """ sets frame size to avoid unexpected resizing """
@@ -159,11 +178,7 @@ class TkinterVideo(tk.Label):
 
                     # time.sleep((1 / self._video_meta["framerate"]) - (delta / 1000))
 
-
-                except (StopIteration, av.error.EOFError):
-                    break
-                    
-                except tk.TclError:
+                except (StopIteration, av.error.EOFError, tk.TclError):
                     break
 
         self._frame_number = 0
@@ -228,12 +243,27 @@ class TkinterVideo(tk.Label):
     def current_img(self) -> Image:
         """ returns current frame image """
         return self._current_img
-
+    
     def _display_frame(self, event):
         """ displays the frame on the label """
 
-        if self.scaled or len(self._current_frame_size) == 2:
-            self._current_img =  self._current_img.resize(self._current_frame_size)
+        if self.scaled or (len(self._current_frame_size) == 2 and all(self._current_frame_size)):
+
+            if self._keep_aspect_ratio:
+                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
+
+            else:
+                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
+
+        else: 
+            self._current_frame_size = self.video_info()["framesize"] if all(self.video_info()["framesize"]) else (1, 1)
+            
+            if self._keep_aspect_ratio:
+                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
+
+            else:
+                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
+
 
         self.current_imgtk = ImageTk.PhotoImage(self._current_img)
         self.config(image=self.current_imgtk)
