@@ -24,6 +24,8 @@
 
 # This is same as sample_player example but this doesn't makes use of control variable to update the slider
 
+# import sys
+# sys.path.append('./')
 
 import datetime
 import tkinter as tk
