@@ -1,9 +1,14 @@
 # TkVideoplayer
 
-This is a simple library to play video files in tkinter. This library also provides the ability to play, pause, 
-skip and seek to specific timestamps.
+This is a simple library to **play video** files in tkinter. This library also provides the ability to play, pause, 
+skip and seek to specific timestamps of the video.
 
-#### Example:
+### Installation
+```python
+pip install tkvideoplayer
+```
+
+#### Simple Usage:
 ```python
 import tkinter as tk
 from tkVideoPlayer import TkinterVideo
@@ -19,14 +24,15 @@ videoplayer.play() # play the video
 root.mainloop()
 ```
 
-read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
+### read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 
-> Please immediately upgrade to the latest version if you are using version 1.3 or below
-#### Sample video player made using tkVideoPlayer:
-![Sample player](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/videoplayer_screenshot.png?raw=True)
+> Please immediately upgrade to the latest version if you are using version 1.3 or below ("pip install tkvideoplayer --upgrade")
 
-This example source code can be found [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/examples/sample_player.py)
+### Sample video players made using tkVideoPlayer:
+<img src="https://github.com/PaulleDemon/tkVideoPlayer/blob/master/videoplayer_screenshot.png?raw=True" width=500>
+<img src="https://user-images.githubusercontent.com/89206401/229363046-36ebcffd-36d2-4c7f-98ce-4aa6b402e9e0.png" width=500)
 
+This example source code can be found [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/examples)
 
 **Other libraries you might be interested in:**
 
