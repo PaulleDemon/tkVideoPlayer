@@ -29,8 +29,7 @@ root.mainloop()
 > Please immediately upgrade to the latest version if you are using version 1.3 or below ("pip install tkvideoplayer --upgrade")
 
 ### Sample video players made using tkVideoPlayer:
-<img src="https://github.com/PaulleDemon/tkVideoPlayer/blob/master/videoplayer_screenshot.png?raw=True" width=500>
-<img src="https://user-images.githubusercontent.com/89206401/229363046-36ebcffd-36d2-4c7f-98ce-4aa6b402e9e0.png" width=500)
+<img src="https://user-images.githubusercontent.com/89206401/229363046-36ebcffd-36d2-4c7f-98ce-4aa6b402e9e0.png" width=500> <img src="https://github.com/PaulleDemon/tkVideoPlayer/blob/master/videoplayer_screenshot.png?raw=True" width=500>
 
 This example source code can be found [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/examples)
 
