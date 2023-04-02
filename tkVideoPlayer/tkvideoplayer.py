@@ -6,8 +6,7 @@ import tkinter as tk
 from PIL import ImageTk, Image, ImageOps
 from typing import Tuple, Dict
 
-logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used
-
+logging.getLogger('libav').setLevel(logging.CRITICAL)  # removes warning: deprecated pixel format used
 
 class TkinterVideo(tk.Label):
 
@@ -16,35 +15,35 @@ class TkinterVideo(tk.Label):
 
         self.path = ""
         self._load_thread = None
-
         self._paused = True
         self._stop = True
-
-        self.consistant_frame_rate = consistant_frame_rate # tries to keep the frame rate consistant by skipping over a few frames
-
+        self.consistant_frame_rate = consistant_frame_rate # tries to keep the frame rate consistant by delaying between frames
         self._container = None
-
         self._current_img = None
         self._current_frame_Tk = None
+        
         self._frame_number = 0
         self._time_stamp = 0
-
         self._current_frame_size = (0, 0)
-
         self._seek = False
         self._seek_sec = 0
-
+        self._seek_frame = False
+        self._frame = 0
+        self._any_frame = False
+        self._seek_pause = False
+        
         self._video_info = {
+            "name": None, # name/path of the video
             "duration": 0, # duration of the video
             "framerate": 0, # frame rate of the video
-            "framesize": (0, 0) # tuple containing frame height and width of the video
-
+            "framesize": (0, 0), # tuple containing frame height and width of the video
+            "frames": 0, # total frames of the video
+            "codec": None # codec of the file
         }   
 
         self.set_scaled(scaled)
         self._keep_aspect_ratio = keep_aspect
         self._resampling_method: int = Image.NEAREST
-
 
         self.bind("<<Destroy>>", self.stop)
         self.bind("<<FrameGenerated>>", self._display_frame)
@@ -64,7 +63,7 @@ class TkinterVideo(tk.Label):
         self._keep_aspect_ratio = keep_aspect
 
     def _resize_event(self, event):
-
+        """ scales the label frame dynamically """
         self._current_frame_size = event.width, event.height
 
         if self._paused and self._current_img and self.scaled:
@@ -77,11 +76,11 @@ class TkinterVideo(tk.Label):
             self._current_imgtk = ImageTk.PhotoImage(proxy_img)
             self.config(image=self._current_imgtk)
 
-
     def set_scaled(self, scaled: bool, keep_aspect: bool = False):
+        """ set dynamic scalling for the label """
         self.scaled = scaled
         self._keep_aspect_ratio = keep_aspect
-        
+
         if scaled:
             self.bind("<Configure>", self._resize_event)
 
@@ -89,15 +88,37 @@ class TkinterVideo(tk.Label):
             self.unbind("<Configure>")
             self._current_frame_size = self.video_info()["framesize"]
 
-
     def _set_frame_size(self, event=None):
         """ sets frame size to avoid unexpected resizing """
-
         self._video_info["framesize"] = (self._container.streams.video[0].width, self._container.streams.video[0].height)
 
         self.current_imgtk = ImageTk.PhotoImage(Image.new("RGBA", self._video_info["framesize"], (255, 0, 0, 0)))
         self.config(width=150, height=100, image=self.current_imgtk)
+        
+    def _display_frame(self, event):
+        """ displays the frame on the label """
+        self.event_generate("<<FrameChanged>>")
+ 
+        if self.scaled or (len(self._current_frame_size) == 2 and all(self._current_frame_size)):
+            
+            if self._keep_aspect_ratio:
+                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
 
+            else:
+                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
+
+        else:
+            self._current_frame_size = self.video_info()["framesize"] if all(self.video_info()["framesize"]) else (1, 1)
+            
+            if self._keep_aspect_ratio:
+                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
+
+            else:
+                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
+        
+        self.current_imgtk = ImageTk.PhotoImage(self._current_img)
+        self.config(image=self.current_imgtk)
+        
     def _load(self, path):
         """ load's file from a thread """
 
@@ -111,16 +132,16 @@ class TkinterVideo(tk.Label):
             self._container.discard_corrupt = True
 
             stream = self._container.streams.video[0]
-
-            try:
-                self._video_info["framerate"] = int(stream.average_rate)
-
-            except TypeError:
-                raise TypeError("Not a video file")
             
-            try:
-
-                self._video_info["duration"] = float(stream.duration * stream.time_base)
+            self._video_info["framerate"] = int(stream.average_rate)
+            self._video_info["frames"] = int(stream.frames)
+            self._video_info["codec"] = str(stream.codec_context.name)
+            self._video_info["name"] = str(stream.container.name)
+            
+            self.stream_base = stream.time_base
+            
+            try:              
+                self._video_info["duration"] = round(float(stream.duration * self.stream_base), 2)
                 self.event_generate("<<Duration>>")  # duration has been found
 
             except (TypeError, tk.TclError):  # the video duration cannot be found, this can happen for mkv files
@@ -130,8 +151,6 @@ class TkinterVideo(tk.Label):
 
             self._set_frame_size()
 
-            self.stream_base = stream.time_base
-
             try:
                 self.event_generate("<<Loaded>>") # generated when the video file is opened
             
@@ -140,45 +159,72 @@ class TkinterVideo(tk.Label):
 
             now = time.time_ns() // 1_000_000  # time in milliseconds
             then = now
-
             time_in_frame = (1/self._video_info["framerate"])*1000 # second it should play each frame
-
-
+    
             while self._load_thread == current_thread and not self._stop:
-                if self._seek: # seek to specific second
-                    self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=False) # the seek time is given in av.time_base, the multiplication is to correct the frame
+                
+                if self._seek: # seek to nearest timestamp (second)
+                    self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=self._any_frame) # the seek time application is to correct the frame
                     self._seek = False
                     self._frame_number = self._video_info["framerate"] * self._seek_sec
-
                     self._seek_sec = 0
+                    
+                    if self._seek_pause:
+                        self.play()
+                        self.after(50, self.pause)
+                        
+                if self._seek_frame: # seek to a specific frame               
+                    sec = int(self._frame/self._video_info["framerate"]) # get average timestamp of that required frame
+                    self._container.seek(sec*1000000, whence='time', backward=True) # then seek to the nearest timestamp/keyframe
+                    frame = next(self._container.decode(video=0)) # get the next frame
+                    sec_frame = int(frame.pts * self.stream_base * self._video_info["framerate"]) # get that keyframe number
+                    
+                    try:
+                        if self._delay: # a little bit delay can limit the cpu usage
+                            time.sleep(self._delay)
+                            
+                        # seek to the required frame
+                        for _ in range(sec_frame, self._frame):
+                            frame = next(self._container.decode(video=0))
 
+                        self._current_img = frame.to_image()
+                        self._time_stamp = round(float(frame.pts * self.stream_base), 2)
+                        self._frame_number = self._frame
+                        self.event_generate("<<FrameGenerated>>")
+                        self._seek_frame = False
+                        self._frame = 0
+                        
+                        if self._seek_pause:
+                            self.pause()
+                            
+                    except (StopIteration, av.error.EOFError, tk.TclError):
+                        self._seek_frame = False
+                        self._frame = 0
+                        break
+                    
                 if self._paused:
                     time.sleep(0.0001) # to allow other threads to function better when its paused
                     continue
-
+                
                 now = time.time_ns() // 1_000_000  # time in milliseconds
                 delta = now - then  # time difference between current frame and previous frame
                 then = now
-        
-                # print("Frame: ", frame.time, frame.index, self._video_info["framerate"])
+                
                 try:
+                    
                     frame = next(self._container.decode(video=0))
-
-                    self._time_stamp = float(frame.pts * stream.time_base)
-
+                    
+                    self._time_stamp = round(float(frame.pts * self.stream_base), 2)
                     self._current_img = frame.to_image()
-
                     self._frame_number += 1
-            
+                    
                     self.event_generate("<<FrameGenerated>>")
-
+                    
                     if self._frame_number % self._video_info["framerate"] == 0:
                         self.event_generate("<<SecondChanged>>")
-
-                    if self.consistant_frame_rate:
+                
+                    if self.consistant_frame_rate:             
                         time.sleep(max((time_in_frame - delta)/1000, 0))
-
-                    # time.sleep(abs((1 / self._video_info["framerate"]) - (delta / 1000)))
 
                 except (StopIteration, av.error.EOFError, tk.TclError):
                     break
@@ -186,7 +232,6 @@ class TkinterVideo(tk.Label):
         self._frame_number = 0
         self._paused = True
         self._load_thread = None
-
         self._container = None
         
         try:
@@ -199,9 +244,11 @@ class TkinterVideo(tk.Label):
         """ loads the file from the given path """
         self.stop()
         self.path = path
-
+        self._load_thread = None
+        self._container = None
+        
     def stop(self):
-        """ stops reading the file """
+        """ stops reading the file from reading """
         self._paused = True
         self._stop = True
 
@@ -215,7 +262,6 @@ class TkinterVideo(tk.Label):
         self._stop = False
 
         if not self._load_thread:
-            # print("loading new thread...")
             self._load_thread = threading.Thread(target=self._load,  args=(self.path, ), daemon=True)
             self._load_thread.start()
 
@@ -223,8 +269,12 @@ class TkinterVideo(tk.Label):
         """ returns if the video is paused """
         return self._paused
 
+    def is_stopped(self):
+        """ returns if the video is stopped """
+        return self._stop
+
     def video_info(self) -> Dict:
-        """ returns dict containing duration, frame_rate, file"""
+        """ returns dict containing basic information about the video """
         return self._video_info
 
     def metadata(self) -> Dict:
@@ -245,34 +295,17 @@ class TkinterVideo(tk.Label):
     def current_img(self) -> Image:
         """ returns current frame image """
         return self._current_img
-    
-    def _display_frame(self, event):
-        """ displays the frame on the label """
-
-        if self.scaled or (len(self._current_frame_size) == 2 and all(self._current_frame_size)):
-
-            if self._keep_aspect_ratio:
-                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
-
-            else:
-                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
-
-        else: 
-            self._current_frame_size = self.video_info()["framesize"] if all(self.video_info()["framesize"]) else (1, 1)
-            
-            if self._keep_aspect_ratio:
-                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
-
-            else:
-                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
-
-
-        self.current_imgtk = ImageTk.PhotoImage(self._current_img)
-        self.config(image=self.current_imgtk)
-
-    def seek(self, sec: int):
-        """ seeks to specific time""" 
-
+        
+    def seek(self, sec: int,  any_frame: bool = False, pause: bool = False):
+        """ seeks to specific time (not accurate) """ 
         self._seek = True
-        self._seek_sec = sec            
-            
+        self._seek_sec = sec
+        self._any_frame = any_frame
+        self._seek_pause = pause
+        
+    def seek_frame(self, frame: int, pause: bool = True, delay: float = 0.2):
+        """ seeks to specific frame (accurate) """        
+        self._seek_frame = True
+        self._frame = frame
+        self._seek_pause = pause
+        self._delay = delay if int(delay)<1 else 1.0
