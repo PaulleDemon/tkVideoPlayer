@@ -140,6 +140,7 @@ class TkinterVideo(tk.Label):
 
             now = time.time_ns() // 1_000_000  # time in milliseconds
             then = now
+            lag = 0
 
             time_in_frame = (1/self._video_info["framerate"])*1000 # second it should play each frame
 
@@ -153,15 +154,33 @@ class TkinterVideo(tk.Label):
                     self._seek_sec = 0
 
                 if self._paused:
+                    lag = 0 # we must keep lag at 0 and timers at now to avoid a massive frame skip when resuming
+                    now = time.time_ns() // 1_000_000  # time in milliseconds
+                    then = now
                     time.sleep(0.0001) # to allow other threads to function better when its paused
                     continue
 
                 now = time.time_ns() // 1_000_000  # time in milliseconds
                 delta = now - then  # time difference between current frame and previous frame
                 then = now
-        
+
+                # we add the difference between delta and time_in_frame to lag
+                lag = lag + delta - time_in_frame
                 # print("Frame: ", frame.time, frame.index, self._video_info["framerate"])
                 try:
+                    if self.consistant_frame_rate:
+                        # for each time_in_frame we are late, we skip a frame
+                        for i in range(0, int(max(0, lag) / time_in_frame)):
+                            frame = next(self._container.decode(video=0))
+                            lag -= time_in_frame # we skipped a frame so lag is reduced
+                            self._frame_number += 1
+                            # we must check if second changed, otherwise this event could be skipped
+                            if self._frame_number % self._video_info["framerate"] == 0:
+                                self.event_generate("<<SecondChanged>>")
+
+                        # otherwise if we are too fast (lag < 0), we wait -lag amount
+                        time.sleep(max(0, -lag)/1000)
+
                     frame = next(self._container.decode(video=0))
 
                     self._time_stamp = float(frame.pts * stream.time_base)
@@ -174,11 +193,6 @@ class TkinterVideo(tk.Label):
 
                     if self._frame_number % self._video_info["framerate"] == 0:
                         self.event_generate("<<SecondChanged>>")
-
-                    if self.consistant_frame_rate:
-                        time.sleep(max((time_in_frame - delta)/1000, 0))
-
-                    # time.sleep(abs((1 / self._video_info["framerate"]) - (delta / 1000)))
 
                 except (StopIteration, av.error.EOFError, tk.TclError):
                     break
