@@ -21,7 +21,10 @@ root.mainloop()
 
 read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 
+you can easily integrate this with **CustomTkinter** as well: refer [How to integrate with CustomTkinter?](https://github.com/PaulleDemon/tkVideoPlayer/discussions/23#discussioncomment-4475005)
+
 > Please immediately upgrade to the latest version if you are using version 1.3 or below
+
 #### Sample video player made using tkVideoPlayer:
 ![Sample player](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/videoplayer_screenshot.png?raw=True)
 
