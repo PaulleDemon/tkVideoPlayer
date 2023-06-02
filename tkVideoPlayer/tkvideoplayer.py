@@ -11,7 +11,7 @@ logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecate
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, *args, **kwargs):
+    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, loop: bool = False, *args, **kwargs):
         super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
         self.path = ""
@@ -19,6 +19,7 @@ class TkinterVideo(tk.Label):
 
         self._paused = True
         self._stop = True
+        self._loop = loop
 
         self.consistant_frame_rate = consistant_frame_rate # tries to keep the frame rate consistant by skipping over a few frames
 
@@ -52,6 +53,15 @@ class TkinterVideo(tk.Label):
     def keep_aspect(self, keep_aspect: bool):
         """ keeps the aspect ratio when resizing the image """
         self._keep_aspect_ratio = keep_aspect
+
+    @property
+    def loop(self) -> bool:
+        """ restarts the video from the start when video ends """
+        return self._loop
+
+    @loop.setter
+    def loop(self, loop: bool):
+        self._loop = loop
 
     def set_resampling_method(self, method: int):
         """ sets the resampling method when resizing """
@@ -180,7 +190,13 @@ class TkinterVideo(tk.Label):
 
                     # time.sleep(abs((1 / self._video_info["framerate"]) - (delta / 1000)))
 
-                except (StopIteration, av.error.EOFError, tk.TclError):
+                except av.error.EOFError:
+                    if self._loop:
+                        self.seek(0)
+                    else:
+                        break
+
+                except (StopIteration, tk.TclError):
                     break
 
         self._frame_number = 0
