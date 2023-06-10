@@ -166,7 +166,20 @@ class TkinterVideo(tk.Label):
 
                     self._time_stamp = float(frame.pts * stream.time_base)
 
-                    self._current_img = frame.to_image()
+                    width = self._current_frame_size[0]
+                    height = self._current_frame_size[1]
+                    if self._keep_aspect_ratio:
+                        im_ratio = frame.width / frame.height
+                        dest_ratio = width / height
+                        if im_ratio != dest_ratio:
+                            if im_ratio > dest_ratio:
+                                new_height = round(frame.height / frame.width * width)
+                                height = new_height
+                            else:
+                                new_width = round(frame.width / frame.height * height)
+                                width = new_width
+
+                    self._current_img = frame.to_image(width=width, height=height, interpolation="FAST_BILINEAR")
 
                     self._frame_number += 1
             
@@ -249,25 +262,10 @@ class TkinterVideo(tk.Label):
     def _display_frame(self, event):
         """ displays the frame on the label """
 
-        if self.scaled or (len(self._current_frame_size) == 2 and all(self._current_frame_size)):
-
-            if self._keep_aspect_ratio:
-                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
-
-            else:
-                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
-
-        else: 
-            self._current_frame_size = self.video_info()["framesize"] if all(self.video_info()["framesize"]) else (1, 1)
-            
-            if self._keep_aspect_ratio:
-                self._current_img = ImageOps.contain(self._current_img, self._current_frame_size, self._resampling_method)
-
-            else:
-                self._current_img =  self._current_img.resize(self._current_frame_size, self._resampling_method)
-
-
-        self.current_imgtk = ImageTk.PhotoImage(self._current_img)
+        if self.current_imgtk.width() == self._current_img.width and self.current_imgtk.height() == self._current_img.height:
+            self.current_imgtk.paste(self._current_img)
+        else:
+            self.current_imgtk = ImageTk.PhotoImage(self._current_img)
         self.config(image=self.current_imgtk)
 
     def seek(self, sec: int):
