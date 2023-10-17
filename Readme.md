@@ -21,12 +21,16 @@ root.mainloop()
 
 read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 
+you can easily integrate this with **CustomTkinter** as well: refer [How to integrate with CustomTkinter?](https://github.com/PaulleDemon/tkVideoPlayer/discussions/23#discussioncomment-4475005)
+
 > Please immediately upgrade to the latest version if you are using version 1.3 or below
+
 #### Sample video player made using tkVideoPlayer:
 ![Sample player](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/videoplayer_screenshot.png?raw=True)
 
-This example source code can be found [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/examples/sample_player.py)
 
+
+> Note the above is a video player made using this library. The UI doens't come along with the library. Refer example on how to build the video player [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/examples/sample_player.py)
 
 **Other libraries you might be interested in:**
 
@@ -35,3 +39,16 @@ This example source code can be found [here](https://github.com/PaulleDemon/tkVi
 * [tkTimePicker](https://pypi.org/project/tkTimePicker/) - An easy-to-use timepicker.
 
 * [PyCollision](https://pypi.org/project/PyCollision/) - Helps you draw hitboxes for 2d games.
+
+
+**Donate:**
+
+I'm a passionate supporter of open-source initiatives. Developing and maintaining open-source projects requires a significant commitment of time and effort. My goal is to transition to working on open-source projects on a full-time basis. If you'd like to support me and the open-source community, please consider making small donations so I can dedicate more time to open-source work.
+[Donate](https://www.buymeacoffee.com/ArtPaul)
+
+[<img src="https://github.com/PaulleDemon/PaulleDemon/blob/main/images/buy-me-coffee.png?raw=True" height="100px" width="350px">](https://www.buymeacoffee.com/ArtPaul)
+
+**Other ways to support**
+
+The site [https://adostrings.com](https://adostrings.com) and some of the production grade apps for sale to support open-source initiatives. Send mail to paul@adostrings.com to get to know more.
+ 
