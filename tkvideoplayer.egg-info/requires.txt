@@ -1,2 +1,2 @@
-av
-pillow
+av==9.1.1
+pillow>=9.0.1

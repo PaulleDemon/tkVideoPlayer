@@ -1,3 +1,4 @@
+import gc
 import av
 import time
 import threading
@@ -196,9 +197,17 @@ class TkinterVideo(tk.Label):
 
                     except (StopIteration, av.error.EOFError, tk.TclError):
                         break
+                    
+                self._container.close()
 
+            # print("Container: ", self._container.c)
+            if self._container:
+                self._container.close()
+                self._container = None
+            
         finally:
             self._cleanup()
+            gc.collect()
 
     def _cleanup(self):
         self._frame_number = 0
