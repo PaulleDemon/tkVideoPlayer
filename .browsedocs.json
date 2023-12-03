@@ -1,0 +1,17 @@
+{
+    "version": "2.5",
+    "unique_name": "tkvideoplayer",
+    "project_name": "TkVideoPlayer",
+    "about": "This is a simple library to play video files in tkinter. This library also provides the ability to play, pause, skip, and seek specific timestamps.",
+    "source": "Documentation.md",    
+    "source_code": "https://github.com/PaulleDemon/tkVideoPlayer",
+    "doc_type": "pgm-lng",
+    "additional_links": {
+        "Examples": "https://github.com/PaulleDemon/tkVideoPlayer/tree/master/examples"
+    },
+    "tags": "python, tkinter, tkvideoplayer",
+    "sponsor": {
+        "github": "PaulleDemon",
+        "buymeacoffee": "artpaul"
+    },
+}
