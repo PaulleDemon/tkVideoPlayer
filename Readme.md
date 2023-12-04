@@ -19,7 +19,7 @@ videoplayer.play() # play the video
 root.mainloop()
 ```
 
-read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
+read the documentation [here](https://browsedocs.com/bWXP7P4Tpxhz)
 
 you can easily integrate this with **CustomTkinter** as well: refer [How to integrate with CustomTkinter?](https://github.com/PaulleDemon/tkVideoPlayer/discussions/23#discussioncomment-4475005)
 
