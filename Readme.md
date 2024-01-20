@@ -4,7 +4,7 @@ This is a simple library to **play video** files in tkinter. This library also p
 skip and seek to specific timestamps of the video.
 
 ### Installation
-This is a modified version of tkVideoPlayer by PauleDemon. 
+This is a modified version of tkVideoPlayer by PauleDemon. Download the folder tkVideoPlayer of this fork.
 
 #### Simple Usage:
 ```python
