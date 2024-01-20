@@ -32,7 +32,7 @@ videoplayer.play() # play the video
 root.mainloop()
 ```
 
-### read the documentation [here]([https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md](https://github.com/Akascape/tkVideoPlayer/blob/master/Documentation.md))
+### read the documentation [here](https://github.com/Akascape/tkVideoPlayer/blob/master/Documentation.md)
 
 ### Sample video players made using tkVideoPlayer:
 <img src="https://user-images.githubusercontent.com/89206401/229363046-36ebcffd-36d2-4c7f-98ce-4aa6b402e9e0.png" width=550> 
