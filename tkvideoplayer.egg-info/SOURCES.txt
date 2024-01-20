@@ -1,9 +1,0 @@
-LICENSE
-setup.py
-tkVideoPlayer/__init__.py
-tkVideoPlayer/tkvideoplayer.py
-tkvideoplayer.egg-info/PKG-INFO
-tkvideoplayer.egg-info/SOURCES.txt
-tkvideoplayer.egg-info/dependency_links.txt
-tkvideoplayer.egg-info/requires.txt
-tkvideoplayer.egg-info/top_level.txt
