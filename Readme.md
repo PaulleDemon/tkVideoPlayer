@@ -6,6 +6,17 @@ skip and seek to specific timestamps of the video.
 ### Installation
 This is a modified version of tkVideoPlayer by PauleDemon. Download the folder tkVideoPlayer of this fork.
 
+Functionalities:
+.load(path) : to load a video file
+.stop() : stops the video
+.pause() : pauses the video at any point
+.play() : plays the video
+.video_info() : return video info like framerate(fps), durartion, frame size, total frames, codec and name of the video
+.current_frame_number() : returns the frame number of current location
+.current_img() : return the PIL image of current frame
+.seek(sec, pause) : seek to any timestamp, use pause=True to pause after seeking
+.seek_frame(frame, pause) : seeks accurately to any frame number, use pause=True to pause after seeking
+
 #### Simple Usage:
 ```python
 import tkinter as tk
