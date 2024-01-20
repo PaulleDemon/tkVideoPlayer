@@ -5,7 +5,7 @@ with open("Readme.md", 'r') as f:
 
 setup(
     name='tkvideoplayer',
-    version='2.5',
+    version='2.8',
     description="This library helps you play video files in tkinter",
     license="MIT",
     long_description=long_description,
@@ -23,7 +23,7 @@ setup(
     ],
     keywords=['tkinter', 'video', 'player', 'video player', 'tkvideoplayer', 'play video in tkinter'],
     packages=["tkVideoPlayer"],
-    install_requires=["av==9.1.1", "pillow>=9.0.1"],
+    install_requires=["av==9.2.0", "pillow>=9.0.1"],
     include_package_data=True,
     python_requires='>=3.6',
 )
