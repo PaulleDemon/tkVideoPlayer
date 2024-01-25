@@ -1,2 +1,2 @@
-av~=9.2.0
-pillow~=9.0.1
+av
+pillow
