@@ -16,6 +16,8 @@ Classifier: Programming Language :: Python :: 3.10
 Requires-Python: >=3.6
 Description-Content-Type: text/markdown
 License-File: LICENSE
+Requires-Dist: av==11.0.0
+Requires-Dist: pillow>=10.2.0
 
 # TkVideoplayer
 
@@ -38,7 +40,7 @@ videoplayer.play() # play the video
 root.mainloop()
 ```
 
-read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
+read the documentation [here](https://browsedocs.com/bWXP7P4Tpxhz)
 
 you can easily integrate this with **CustomTkinter** as well: refer [How to integrate with CustomTkinter?](https://github.com/PaulleDemon/tkVideoPlayer/discussions/23#discussioncomment-4475005)
 
@@ -70,5 +72,7 @@ I'm a passionate supporter of open-source initiatives. Developing and maintainin
 
 **Other ways to support**
 
-The site [https://adostrings.com](https://adostrings.com) and some of the production grade apps for sale to support open-source initiatives. Send mail to paul@adostrings.com to get to know more.
- 
+Try my production scale software products on [Gumroad](https://foxcraft.gumroad.com/)
+
+[<img src="https://github.com/PaulleDemon/PaulleDemon/blob/main/images/gumroad.png" height="150px" width="150px">](https://foxcraft.gumroad.com/)
+
