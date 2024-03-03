@@ -1,4 +1,7 @@
+# Modified version of TkVideoPlayer by Akascape
+
 import av
+import pyaudio
 import time
 import threading
 import logging
@@ -10,7 +13,7 @@ logging.getLogger('libav').setLevel(logging.CRITICAL)  # removes warning: deprec
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, *args, **kwargs):
+    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, audio=False, *args, **kwargs):
         super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
         self.path = ""
@@ -31,6 +34,7 @@ class TkinterVideo(tk.Label):
         self._frame = 0
         self._any_frame = False
         self._seek_pause = False
+        self._audio = audio
         
         self._video_info = {
             "name": None, # name/path of the video
@@ -98,7 +102,7 @@ class TkinterVideo(tk.Label):
     def _display_frame(self, event):
         """ displays the frame on the label """
         self.event_generate("<<FrameChanged>>")
- 
+        
         if self.scaled or (len(self._current_frame_size) == 2 and all(self._current_frame_size)):
             
             if self._keep_aspect_ratio:
@@ -124,7 +128,7 @@ class TkinterVideo(tk.Label):
 
         current_thread = threading.current_thread()
 
-        with av.open(path) as self._container:
+        with av.open(path, "r") as self._container:
 
             self._container.streams.video[0].thread_type = "AUTO"
             
@@ -132,12 +136,29 @@ class TkinterVideo(tk.Label):
             self._container.discard_corrupt = True
 
             stream = self._container.streams.video[0]
-            
+
+            try:
+                if self._audio:
+                    audio_stream = self._container.streams.audio[0]
+
+                    samplerate = audio_stream.rate
+                    channels = audio_stream.channels
+              
+                    p = pyaudio.PyAudio()
+                    audio_stream = p.open(format=pyaudio.paFloat32,
+                                    channels=channels,
+                                    rate=samplerate,
+                                    output=True)
+                else:
+                    audio_stream = False
+            except:
+                audio_stream = False
+                
             self._video_info["framerate"] = int(stream.average_rate)
             self._video_info["frames"] = int(stream.frames)
             self._video_info["codec"] = str(stream.codec_context.name)
             self._video_info["name"] = str(stream.container.name)
-            
+    
             self.stream_base = stream.time_base
             
             try:              
@@ -160,7 +181,7 @@ class TkinterVideo(tk.Label):
             now = time.time_ns() // 1_000_000  # time in milliseconds
             then = now
             time_in_frame = (1/self._video_info["framerate"])*1000 # second it should play each frame
-    
+            
             while self._load_thread == current_thread and not self._stop:
                 
                 if self._seek: # seek to nearest timestamp (second)
@@ -209,24 +230,36 @@ class TkinterVideo(tk.Label):
                 now = time.time_ns() // 1_000_000  # time in milliseconds
                 delta = now - then  # time difference between current frame and previous frame
                 then = now
-                
+
                 try:
+                    if audio_stream:
+                        frame = next(self._container.decode(video=0, audio=0))
+                    else:
+                        frame = next(self._container.decode(video=0))
+  
+                    if 'Video' in repr(frame):
+   
+                        self._time_stamp = round(float(frame.pts * self.stream_base), 2)
+         
+                        self._current_img = frame.to_image()
+                        self._frame_number += 1
                     
-                    frame = next(self._container.decode(video=0))
-                    
-                    self._time_stamp = round(float(frame.pts * self.stream_base), 2)
-                    self._current_img = frame.to_image()
-                    self._frame_number += 1
-                    
-                    self.event_generate("<<FrameGenerated>>")
-                    
-                    if self._frame_number % self._video_info["framerate"] == 0:
-                        self.event_generate("<<SecondChanged>>")
-                
-                    if self.consistant_frame_rate:             
-                        time.sleep(max((time_in_frame - delta)/1000, 0))
+                        self.event_generate("<<FrameGenerated>>")
+
+                        if self._frame_number % self._video_info["framerate"] == 0:
+                            self.event_generate("<<SecondChanged>>")
+
+                        if not audio_stream:
+                            if self.consistant_frame_rate:             
+                                time.sleep(max((time_in_frame - delta)/1000, 0))
+                                
+                    elif self._audio:
+                        audio_data = frame.to_ndarray().astype('float32')
+                        interleaved_data = audio_data.T.flatten().tobytes()
+                        audio_stream.write(interleaved_data)
 
                 except (StopIteration, av.error.EOFError, tk.TclError):
+                    
                     break
 
         self._frame_number = 0
@@ -234,12 +267,18 @@ class TkinterVideo(tk.Label):
         self._load_thread = None
         self._container = None
         
+        if audio_stream:
+            audio_stream.stop_stream()
+            audio_stream.close()
+            p.terminate()
+        
         try:
             self.event_generate("<<Ended>>")  # this is generated when the video ends
 
         except tk.TclError:
             pass
-
+            
+                   
     def load(self, path: str):
         """ loads the file from the given path """
         self.stop()
@@ -284,6 +323,12 @@ class TkinterVideo(tk.Label):
 
         return {}
 
+    def mute(self) -> None:
+        self._audio = False
+
+    def unmute(self) -> None:
+        self._audio = True
+             
     def current_frame_number(self) -> int:
         """ return current frame number """
         return self._frame_number
@@ -303,7 +348,7 @@ class TkinterVideo(tk.Label):
         self._any_frame = any_frame
         self._seek_pause = pause
         
-    def seek_frame(self, frame: int, pause: bool = True, delay: float = 0.2):
+    def seek_frame(self, frame: int, pause: bool = True, delay: float = 0.3):
         """ seeks to specific frame (accurate) """        
         self._seek_frame = True
         self._frame = frame
