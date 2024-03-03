@@ -6,7 +6,7 @@ Below are the methods of this library.
 
 | Methods          | Parameters                           | Description                                                                                                                                                                                   |
 |------------------|--------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **\_\_init\_\_** | <li>scaled(bool)</li> <li>consistant_frame_rate(bool)</li> <li>keep_aspect(bool)=False</li>   | <li>The _scaled_ parameter scales the video to the label size.</li>  <li>The _consistant_frame_rate_ parameter adds an appropriate time delay to keep the framerate consistant.</li> <li>_keep_aspect_ keeps aspect ratio when resizing. (note: It will not increase the size) </li> |
+| **\_\_init\_\_** | <li>scaled(bool)</li> <li>consistant_frame_rate(bool)</li> <li>keep_aspect(bool)=False</li>   <li>audio(bool)=False</li> | <li>The _scaled_ parameter scales the video to the label size.</li>  <li>The _consistant_frame_rate_ parameter adds an appropriate time delay to keep the framerate consistant.</li> <li>_keep_aspect_ keeps aspect ratio when resizing. (note: It will not increase the size) </li> |
 | set_scaled       | <li>scaled(bool)</li> <li>keep_aspect(bool)=False</li> | scales the video to the label size. |
 | **load**         | file_path(str)                       | starts loading the video file in a thread.   |
 | set_size         | <li>size(Tuple[int, int])</li> <li>keep_aspect(bool)=False</li> | sets the size of the video frame, setting this will set _scaled_ to `False`.  |
