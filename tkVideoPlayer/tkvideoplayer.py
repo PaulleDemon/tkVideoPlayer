@@ -4,6 +4,7 @@ import time
 import threading
 import logging
 import tkinter as tk
+import pyaudio
 from PIL import ImageTk, Image, ImageOps
 from typing import Tuple, Dict
 
@@ -12,7 +13,7 @@ logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecate
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, *args, **kwargs):
+    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, audio=True, *args, **kwargs):
         super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
         self.path = ""
@@ -35,6 +36,8 @@ class TkinterVideo(tk.Label):
         self._seek = False
         self._seek_sec = 0
 
+        self._audio = audio
+        
         self._video_info = {
             "duration": 0, # duration of the video
             "framerate": 0, # frame rate of the video
@@ -132,8 +135,23 @@ class TkinterVideo(tk.Label):
 
                 self._set_frame_size()
 
-                self.stream_base = stream.time_base
+                try:
+                    if self._audio:
+                        audio_stream = self._container.streams.audio[0]
 
+                        samplerate = audio_stream.rate # this samplerate will work as the video clock
+                        channels = audio_stream.channels
+                  
+                        p = pyaudio.PyAudio()
+                        audio_device = p.open(format=pyaudio.paFloat32,
+                                              channels=channels,
+                                              rate=samplerate,
+                                              output=True)
+                    else:
+                        audio_device = False
+                except:
+                    audio_device = False
+                
                 try:
                     self.event_generate("<<Loaded>>") # generated when the video file is opened
                 
@@ -144,7 +162,6 @@ class TkinterVideo(tk.Label):
                 then = now
 
                 time_in_frame = (1/self._video_info["framerate"])*1000 # second it should play each frame
-
 
                 while self._load_thread == current_thread and not self._stop:
                     if self._seek: # seek to specific second
@@ -157,53 +174,127 @@ class TkinterVideo(tk.Label):
                     if self._paused:
                         time.sleep(0.0001) # to allow other threads to function better when its paused
                         continue
-
-                    now = time.time_ns() // 1_000_000  # time in milliseconds
-                    delta = now - then  # time difference between current frame and previous frame
-                    then = now
-            
+                    
+                    self.frame_buffers = [] # flush all previous buffers
+                    
                     # print("Frame: ", frame.time, frame.index, self._video_info["framerate"])
                     try:
-                        frame = next(self._container.decode(video=0))
-
-                        self._time_stamp = float(frame.pts * stream.time_base)
-
-                        width = self._current_frame_size[0]
-                        height = self._current_frame_size[1]
-                        if self._keep_aspect_ratio:
-                            im_ratio = frame.width / frame.height
-                            dest_ratio = width / height
-                            if im_ratio != dest_ratio:
-                                if im_ratio > dest_ratio:
-                                    new_height = round(frame.height / frame.width * width)
-                                    height = new_height
+                        if audio_device and self._audio:
+                            
+                            dont_seek = False
+                    
+                            last_audio_buffer = False
+                            last_video_buffer = False
+                            
+                            while True:
+                                frame = next(self._container.decode(video=0, audio=0))
+                                
+                                if 'Video' in repr(frame):
+                                    if last_audio_buffer:
+                                        if round(float(frame.pts * stream.time_base), 2)<=last_audio_buffer:
+                                            self.frame_buffers.append(frame)
+                                        else:
+                                            break # break if the last audio buffer pts matches the final video buffer pts
+                                        if not last_video_buffer:
+                                            break
+                                        dont_seek = True
+                                    else:
+                                        self.frame_buffers.append(frame)
+                                        last_video_buffer = True
+                                        
                                 else:
-                                    new_width = round(frame.width / frame.height * height)
-                                    width = new_width
+                                    if dont_seek: # avoid excessive buffering, can cause stuttering frames
+                                        break
+                                    self.frame_buffers.append(frame)
+                                    last_audio_buffer = round(float(frame.pts * audio_stream.time_base), 2)
+                     
+                    
+                            self.frame_buffers = sorted(self.frame_buffers, key=lambda f: f.pts * stream.time_base if 'Video' in repr(f) else f.pts * audio_stream.time_base) # sort all the frames based on their presentation time
 
-                        self._current_img = frame.to_image(width=width, height=height, interpolation="FAST_BILINEAR")
+                            for frame in self.frame_buffers:
+                                if 'Video' in repr(frame):
+                                    
+                                    width = self._current_frame_size[0]
+                                    height = self._current_frame_size[1]
+                                    if self._keep_aspect_ratio:
+                                        im_ratio = frame.width / frame.height
+                                        dest_ratio = width / height
+                                        if im_ratio != dest_ratio:
+                                            if im_ratio > dest_ratio:
+                                                new_height = round(frame.height / frame.width * width)
+                                                height = new_height
+                                            else:
+                                                new_width = round(frame.width / frame.height * height)
+                                                width = new_width
 
-                        self._frame_number += 1
-                
-                        self.event_generate("<<FrameGenerated>>")
+                                    self._current_img = frame.to_image(width=width, height=height, interpolation="FAST_BILINEAR")
 
-                        if self._frame_number % self._video_info["framerate"] == 0:
-                            self.event_generate("<<SecondChanged>>")
+                                    self._frame_number += 1
+                            
+                                    self.event_generate("<<FrameGenerated>>")
 
-                        if self.consistant_frame_rate:
-                            time.sleep(max((time_in_frame - delta)/1000, 0))
+                                    if self._frame_number % self._video_info["framerate"] == 0:
+                                        self.event_generate("<<SecondChanged>>")
+                                
+                                else:
+                                    self._time_stamp = float(frame.pts * audio_stream.time_base)
+                                    audio_data = frame.to_ndarray().astype('float32')
+                                    interleaved_data = audio_data.T.flatten().tobytes()
+                                    audio_device.write(interleaved_data)
+                                    
+                                if self._stop or self._paused:
+                                    break
+                                    
+                        else:
+                            now = time.time_ns() // 1_000_000  # time in milliseconds
+                            delta = now - then  # time difference between current frame and previous frame
+                            then = now
+                             
+                            frame = next(self._container.decode(video=0))
 
-                        # time.sleep(abs((1 / self._video_info["framerate"]) - (delta / 1000)))
+                            self._time_stamp = float(frame.pts * stream.time_base)
+
+                            width = self._current_frame_size[0]
+                            height = self._current_frame_size[1]
+                            if self._keep_aspect_ratio:
+                                im_ratio = frame.width / frame.height
+                                dest_ratio = width / height
+                                if im_ratio != dest_ratio:
+                                    if im_ratio > dest_ratio:
+                                        new_height = round(frame.height / frame.width * width)
+                                        height = new_height
+                                    else:
+                                        new_width = round(frame.width / frame.height * height)
+                                        width = new_width
+
+                            self._current_img = frame.to_image(width=width, height=height, interpolation="FAST_BILINEAR")
+
+                            self._frame_number += 1
+                    
+                            self.event_generate("<<FrameGenerated>>")
+
+                            if self._frame_number % self._video_info["framerate"] == 0:
+                                self.event_generate("<<SecondChanged>>")
+
+                            if self.consistant_frame_rate:
+                                time.sleep(max((time_in_frame - delta)/1000, 0))
+
+                            # time.sleep(abs((1 / self._video_info["framerate"]) - (delta / 1000)))
 
                     except (StopIteration, av.error.EOFError, tk.TclError):
                         break
-                    
-                self._container.close()
 
             # print("Container: ", self._container.c)
             if self._container:
                 self._container.close()
+                stream.close()
                 self._container = None
+
+            if audio_device:
+                audio_device.stop_stream()
+                audio_device.close()
+                p.terminate()
+                audio_stream.close()
             
         finally:
             self._cleanup()
@@ -213,6 +304,8 @@ class TkinterVideo(tk.Label):
         self._frame_number = 0
         self._paused = True
         self._stop = True
+        self.frame_buffers = []
+        
         if self._load_thread:
             self._load_thread = None
         if self._container:
@@ -222,7 +315,6 @@ class TkinterVideo(tk.Label):
             self.event_generate("<<Ended>>")
         except tk.TclError:
             pass
-
 
     def load(self, path: str):
         """ loads the file from the given path """
@@ -249,6 +341,12 @@ class TkinterVideo(tk.Label):
             self._load_thread = threading.Thread(target=self._load,  args=(self.path, ), daemon=True)
             self._load_thread.start()
 
+    def mute(self):
+        self._audio = False
+
+    def unmute(self):
+        self._audio = True
+        
     def is_paused(self):
         """ returns if the video is paused """
         return self._paused
@@ -290,4 +388,4 @@ class TkinterVideo(tk.Label):
 
         self._seek = True
         self._seek_sec = sec            
-            
+        

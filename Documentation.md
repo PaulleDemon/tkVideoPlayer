@@ -28,7 +28,7 @@ Below are the methods of this library.
 
 | Methods          | Parameters                           | Description                                                                                                                                                                                   |
 |------------------|--------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| \_\_init\_\_     | scaled(bool), consistant_frame_rate(bool)=True, keep_aspect(bool)=False   | The scale parameter scales the video to the label size.  The consistant_frame_rate parameter skips frames to keep the framerate consistant and keep_aspect keeps aspect ratio when resizing(note: It will not increase the size)       |
+| \_\_init\_\_     | scaled(bool), consistant_frame_rate(bool)=True, keep_aspect(bool)=False, audio(bool)=True   | <br> The scale parameter scales the video to the label size.  <br> The consistant_frame_rate parameter skips frames to keep the framerate consistant. <br> keep_aspect keeps aspect ratio when resizing(note: It will not increase the size)   <br> The audio parameter enables audio in the clip    |
 | set_scaled       | scaled(bool), keep_aspect(bool)=False                         | scales the video to the label size.                                                                                                                                                           |
 | load             | file_path(str)                       | starts loading the video in a thread.                                                                                                                                                         |
 | set_size         | size(Tuple[int, int]), keep_aspect(bool)=False | sets the size of the video frame. setting this will set scaled to `False`                                                                                                                     |
@@ -41,6 +41,7 @@ Below are the methods of this library.
 | seek             | sec(int)                             | moves to specific time stamp. provide time stamp in seconds                                           
 | keep_aspect             | keep_aspect(bool)                            | keeps aspect ratio when resizing                                          
 | metadata         | -                                    | returns meta information of the video if available in the form of dictionary                                           
+| mute/unmute      | -                                    | enable/disable audio in the clip |
 | set_resampling_method|  method(int)                                   | By default the resampling method while resizing is NEAREST, changing this can affect how its resampled when image is resized, refer PIL documentation to read more (note: this can also affect the framerate of the video)|
 
 ### Virtual events
