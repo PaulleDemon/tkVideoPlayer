@@ -318,13 +318,14 @@ class TkinterVideo(tk.Label):
                 except (StopIteration, av.error.EOFError, tk.TclError):
                     break
 
+        self._container.close()
         self._frame_number = 0
         self._paused = True
         self._load_thread = None
         self._container = None
         self.frame_buffers = []
         frame = None
-        stream = None
+        stream.close()
     
         if audio_stream:
             audio_stream.stop_stream()
