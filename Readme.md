@@ -15,7 +15,7 @@ Functionalities:
 - current_img() : return the PIL image of current frame
 - seek(sec, pause) : seek to any timestamp, use pause=True to pause after seeking
 - seek_frame(frame, pause) : seeks accurately to any frame number, use pause=True to pause after seeking
-- mute()/unmute() : enable audio in clip (currently in beta stage, help wanted, see [this](https://stackoverflow.com/questions/78095616/syncing-audio-video-in-pyav-decoding) <-issue)
+- mute()/unmute() : enable audio in clip (currently in beta stage)
 #### Simple Usage:
 ```python
 import tkinter as tk
