@@ -136,7 +136,7 @@ class TkinterVideo(tk.Label):
             self._container.fast_seek = True
             self._container.discard_corrupt = True
 
-            stream = self._container.streams.video[0]
+            video_stream = self._container.streams.video[0]
 
             try:
                 if self._audio:
@@ -146,25 +146,25 @@ class TkinterVideo(tk.Label):
                     channels = audio_stream.channels
               
                     p = pyaudio.PyAudio()
-                    audio_stream = p.open(format=pyaudio.paFloat32,
-                                    channels=channels,
-                                    rate=samplerate,
-                                    output=True)
-                    self.audio_stream_base = self._container.streams.audio[0].time_base
+                    audio_device = p.open(format=pyaudio.paFloat32,
+                                          channels=channels,
+                                          rate=samplerate,
+                                          output=True)
+                    self.audio_stream_base = audio_stream.time_base
                 else:
-                    audio_stream = False
+                    audio_device = False
             except:
-                audio_stream = False
+                audio_device = False
                 
-            self._video_info["framerate"] = int(stream.average_rate)
-            self._video_info["frames"] = int(stream.frames)
-            self._video_info["codec"] = str(stream.codec_context.name)
-            self._video_info["name"] = str(stream.container.name)
+            self._video_info["framerate"] = int(video_stream.average_rate)
+            self._video_info["frames"] = int(video_stream.frames)
+            self._video_info["codec"] = str(video_stream.codec_context.name)
+            self._video_info["name"] = str(video_stream.container.name)
     
-            self.video_stream_base = stream.time_base
+            self.video_stream_base = video_stream.time_base
             
             try:              
-                self._video_info["duration"] = round(float(stream.duration * self.video_stream_base), 2)
+                self._video_info["duration"] = round(float(video_stream.duration * self.video_stream_base), 2)
                 self.event_generate("<<Duration>>")  # duration has been found
 
             except (TypeError, tk.TclError):  # the video duration cannot be found, this can happen for mkv files
@@ -238,7 +238,7 @@ class TkinterVideo(tk.Label):
                 dont_loop = False
                 
                 try:
-                    if audio_stream and self._audio:
+                    if audio_device and self._audio:
                         last_audio_buffer = False
                         last_video_buffer = False
                         
@@ -291,7 +291,7 @@ class TkinterVideo(tk.Label):
                                 
                                 audio_data = i.to_ndarray().astype('float32')
                                 interleaved_data = audio_data.T.flatten().tobytes()
-                                audio_stream.write(interleaved_data)
+                                audio_device.write(interleaved_data)
                             if self._paused:
                                 break
                             if self._stop:
@@ -325,12 +325,13 @@ class TkinterVideo(tk.Label):
         self._container = None
         self.frame_buffers = []
         frame = None
-        stream.close()
-    
-        if audio_stream:
-            audio_stream.stop_stream()
-            audio_stream.close()
+        video_stream.close()
+        
+        if audio_device:
+            audio_device.stop_stream()
+            audio_device.close()
             p.terminate()
+            audio_stream.close()
 
         try:
             self.event_generate("<<Ended>>")  # this is generated when the video ends
