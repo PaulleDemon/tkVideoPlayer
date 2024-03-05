@@ -31,6 +31,7 @@ videoplayer.play() # play the video
 
 root.mainloop()
 ```
+## If you are facing issues while playing some videos, turn off the audio.
 
 ### read the documentation [here](https://github.com/Akascape/tkVideoPlayer/blob/master/Documentation.md)
 
