@@ -13,7 +13,7 @@ logging.getLogger('libav').setLevel(logging.CRITICAL)  # removes warning: deprec
 
 class TkinterVideo(tk.Label):
 
-    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, audio=False, *args, **kwargs):
+    def __init__(self, master, scaled: bool = True, consistant_frame_rate: bool = True, keep_aspect: bool = False, audio=True, *args, **kwargs):
         super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
         self.path = ""
