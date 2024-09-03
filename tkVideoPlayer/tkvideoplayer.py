@@ -17,6 +17,8 @@ class TkinterVideo(tk.Label):
         self.path = ""
         self._load_thread = None
 
+        self.Frame_Rate_Scaler = 1 # this var is to contral how slow or fast the frame rate is for speeding or slowing down video
+
         self._paused = True
         self._stop = True
 
@@ -112,14 +114,11 @@ class TkinterVideo(tk.Label):
             stream = self._container.streams.video[0]
 
             try:
-                self._video_info["framerate"] = int(stream.average_rate / 2) # For some reason the frame rate was double for each  video i  tried to play
-                                                                             # this will ensure that it will play at the frame rate the video is intended
-                                                                             # Edited by https://github.com/WaseemALTamer or waseem8630 for Discord reach
-                                                                             # out for clarfcation you want to
+                self._video_info["framerate"] = int(stream.average_rate * self.Frame_Rate_Scaler)     # this file has been edited the the var can speed or slow down the video
 
             except TypeError:
                 raise TypeError("Not a video file")
-            
+
             try:
 
                 self._video_info["duration"] = float(stream.duration * stream.time_base)
@@ -148,8 +147,24 @@ class TkinterVideo(tk.Label):
 
             while self._load_thread == current_thread and not self._stop:
                 if self._seek: # seek to specific second
-                    self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=False) # the seek time is given in av.time_base, the multiplication is to correct the frame
-                    self._seek = False
+                    self._container.seek(self._seek_sec*1000000) # the seek time is given in av.time_base, the multiplication is to correct the frame
+                    frame = next(self._container.decode(video=0)) # grab the next frame 
+                    CurrentFrame = float(frame.pts * stream.time_base) # calclate the time of the frame
+
+                    if CurrentFrame >= self._seek_sec and not self._stop: # check if the frame time is before
+                        self._container.seek((self._seek_sec - 5)*1000000) # if it is then seek the before 5 sec
+
+                    self._seek = False # we set the seek to false so it dose not correct where we are
+                                       # as we are seeking it from a seek bar this is mostly for gui
+                    
+                    while CurrentFrame <= self._seek_sec and not self._seek and not self._stop: # we can loop through the frames until we get to the desired frame
+                        frame = next(self._container.decode(video=0)) # keep getting the next frame
+                        CurrentFrame = float(frame.pts * stream.time_base) # update the current frame time so we know where we are at so far
+
+
+
+
+                    
                     self._frame_number = self._video_info["framerate"] * self._seek_sec
 
                     self._seek_sec = 0
