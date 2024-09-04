@@ -19,7 +19,7 @@ videoplayer.play() # play the video
 root.mainloop()
 ```
 
-read the documentation [here](https://browsedocs.com/bWXP7P4Tpxhz)
+read the documentation [here](https://github.com/PaulleDemon/tkVideoPlayer/blob/master/Documentation.md)
 
 you can easily integrate this with **CustomTkinter** as well: refer [How to integrate with CustomTkinter?](https://github.com/PaulleDemon/tkVideoPlayer/discussions/23#discussioncomment-4475005)
 
@@ -41,17 +41,4 @@ you can easily integrate this with **CustomTkinter** as well: refer [How to inte
 
 * [PyCollision](https://pypi.org/project/PyCollision/) - Helps you draw hitboxes for 2d games.
 
-
-**Donate:**
-
-I'm a passionate supporter of open-source initiatives. Developing and maintaining open-source projects requires a significant commitment of time and effort. My goal is to transition to working on open-source projects on a full-time basis. If you'd like to support me and the open-source community, please consider making small donations so I can dedicate more time to open-source work.
-[Donate](https://www.buymeacoffee.com/ArtPaul)
-
-[<img src="https://github.com/PaulleDemon/PaulleDemon/blob/main/images/buy-me-coffee.png?raw=True" height="100px" width="350px">](https://www.buymeacoffee.com/ArtPaul)
-
-**Other ways to support**
-
-Try my production scale software products on [Gumroad](https://foxcraft.gumroad.com/)
-
-[<img src="https://github.com/PaulleDemon/PaulleDemon/blob/main/images/gumroad.png" height="150px" width="150px">](https://foxcraft.gumroad.com/)
 
