@@ -146,10 +146,13 @@ class TkinterVideo(tk.Label):
 
 
             while self._load_thread == current_thread and not self._stop:
+
                 if self._seek: # seek to specific second
-                    self._container.seek(self._seek_sec*1000000) # the seek time is given in av.time_base, the multiplication is to correct the frame
-                    frame = next(self._container.decode(video=0)) # grab the next frame 
+                    # the seek time is given in av.time_base, the multiplication is to correct the frame
+                    self._container.seek(self._seek_sec*1000000)
+                    frame = next(self._container.decode(video=0)) # grab the next frame
                     CurrentFrame = float(frame.pts * stream.time_base) # calclate the time of the frame
+
 
                     if CurrentFrame >= self._seek_sec and not self._stop: # check if the frame time is before
                         self._container.seek((self._seek_sec - 5)*1000000) # if it is then seek the before 5 sec
@@ -157,9 +160,12 @@ class TkinterVideo(tk.Label):
                     self._seek = False # we set the seek to false so it dose not correct where we are
                                        # as we are seeking it from a seek bar this is mostly for gui
                     
-                    while CurrentFrame <= self._seek_sec and not self._seek and not self._stop: # we can loop through the frames until we get to the desired frame
+                    # we can loop through the frames until we get to the desired frame
+                    while CurrentFrame <= self._seek_sec and not self._seek and not self._stop:
+
                         frame = next(self._container.decode(video=0)) # keep getting the next frame
                         CurrentFrame = float(frame.pts * stream.time_base) # update the current frame time so we know where we are at so far
+                        
 
 
 
