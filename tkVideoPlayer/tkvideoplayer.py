@@ -5,6 +5,10 @@ import logging
 import tkinter as tk
 from PIL import ImageTk, Image, ImageOps
 from typing import Tuple, Dict
+from TickSystem import FpsController # this library is going to be used to controll the fps
+                                     # this takes count of the time that the other lines is
+                                     # going to take
+
 
 logging.getLogger('libav').setLevel(logging.ERROR)  # removes warning: deprecated pixel format used
 
@@ -15,14 +19,17 @@ class TkinterVideo(tk.Label):
         super(TkinterVideo, self).__init__(master, *args, **kwargs)
 
         self.path = ""
-        self._load_thread = None
-
-        self.Frame_Rate_Scaler = 1 # this var is to contral how slow or fast the frame rate is for speeding or slowing down video
-
+        self._load_thread:threading.Thread = None
         self._paused = True
         self._stop = True
 
-        self.consistant_frame_rate = consistant_frame_rate # tries to keep the frame rate consistant by skipping over a few frames
+        self.consistant_frame_rate:bool = consistant_frame_rate # tries to keep the frame rate consistant by skipping over a few frames
+
+        self.Frame_Rate_Controller:FpsController = None # this will be used to block the thread until the next frame it utlise a
+                                                        # tick system so the time it takes to run your code is accounted for
+                                                        # refare to the file TickSystem.py for further explnation
+
+        self.Frame_Rate_Scaler:float = 1.0 # this var is to contral how slow or fast the frame rate is for speeding or slowing down video
 
         self._container = None
 
@@ -115,6 +122,7 @@ class TkinterVideo(tk.Label):
 
             try:
                 self._video_info["framerate"] = int(stream.average_rate * self.Frame_Rate_Scaler)     # this file has been edited the the var can speed or slow down the video
+                self.Frame_Rate_Controller = FpsController(DesiredFps=(stream.average_rate * self.Frame_Rate_Scaler))
 
             except TypeError:
                 raise TypeError("Not a video file")
@@ -145,9 +153,12 @@ class TkinterVideo(tk.Label):
             time_in_frame = (1/self._video_info["framerate"])*1000 # second it should play each frame
 
 
+
+
+
             while self._load_thread == current_thread and not self._stop:
 
-                if self._seek: # seek to specific second
+                if self._seek and not self._stop: # seek to specific second
                     # the seek time is given in av.time_base, the multiplication is to correct the frame
                     self._container.seek(self._seek_sec*1000000)
                     frame = next(self._container.decode(video=0)) # grab the next frame
@@ -155,7 +166,10 @@ class TkinterVideo(tk.Label):
 
 
                     if CurrentFrame >= self._seek_sec and not self._stop: # check if the frame time is before
-                        self._container.seek((self._seek_sec - 5)*1000000) # if it is then seek the before 5 sec
+                        try: # we have to try because this is running on a thread
+                            self._container.seek((self._seek_sec - 5)*1000000) # if it is then seek the before 5 sec
+                        except:
+                            pass
 
                     self._seek = False # we set the seek to false so it dose not correct where we are
                                        # as we are seeking it from a seek bar this is mostly for gui
@@ -163,9 +177,11 @@ class TkinterVideo(tk.Label):
                     # we can loop through the frames until we get to the desired frame
                     while CurrentFrame <= self._seek_sec and not self._seek and not self._stop:
 
-                        frame = next(self._container.decode(video=0)) # keep getting the next frame
-                        CurrentFrame = float(frame.pts * stream.time_base) # update the current frame time so we know where we are at so far
-                        
+                        try:
+                            frame = next(self._container.decode(video=0)) # keep getting the next frame
+                            CurrentFrame = float(frame.pts * stream.time_base) # update the current frame time so we know where we are at so far
+                        except:
+                            pass
 
 
 
@@ -177,6 +193,10 @@ class TkinterVideo(tk.Label):
 
                 if self._paused:
                     time.sleep(0.0001) # to allow other threads to function better when its paused
+
+                    self.Frame_Rate_Controller.TickTimer = time.time() # reset the TickTimer this will help
+                                                                       # tell our code that we are not behind on
+                                                                       # fps
                     continue
 
                 now = time.time_ns() // 1_000_000  # time in milliseconds
@@ -199,7 +219,13 @@ class TkinterVideo(tk.Label):
                         self.event_generate("<<SecondChanged>>")
 
                     if self.consistant_frame_rate:
-                        time.sleep(max((time_in_frame - delta)/1000, 0))
+                        #time.sleep(max((time_in_frame - delta)/1000, 0))
+                        self.Frame_Rate_Controller.BlockUntilNextFrame() # this is much better methode than the time.sleep()
+                                                                         # this utlise the simple mousle that will achieve
+                                                                         # the Desired Frame rate through keeping track of a tick
+                                                                         # system i still left the code for the previous methode
+                                                                         # so you can use that if you dont care about playing the
+                                                                         # video faster or slower
 
                     # time.sleep(abs((1 / self._video_info["framerate"]) - (delta / 1000)))
 
