@@ -29,6 +29,7 @@ class TkinterVideo(tk.Label):
         self._current_frame_Tk = None
         self._frame_number = 0
         self._time_stamp = 0
+        self._playback_speed = 1.0  # Default to normal speed
 
         self._current_frame_size = (0, 0)
 
@@ -50,6 +51,10 @@ class TkinterVideo(tk.Label):
         self.bind("<<Destroy>>", self.stop)
         self.bind("<<FrameGenerated>>", self._display_frame)
     
+    def set_speed(self, speed: float):
+        """Set playback speed."""
+        self._playback_speed = speed
+        
     def keep_aspect(self, keep_aspect: bool):
         """ keeps the aspect ratio when resizing the image """
         self._keep_aspect_ratio = keep_aspect
@@ -108,7 +113,6 @@ class TkinterVideo(tk.Label):
             with av.open(path) as self._container:
 
                 self._container.streams.video[0].thread_type = "AUTO"
-                
                 self._container.fast_seek = True
                 self._container.discard_corrupt = True
 
@@ -116,56 +120,62 @@ class TkinterVideo(tk.Label):
 
                 try:
                     self._video_info["framerate"] = int(stream.average_rate)
-
                 except TypeError:
                     raise TypeError("Not a video file")
-                
-                try:
 
+                try:
                     self._video_info["duration"] = float(stream.duration * stream.time_base)
                     self.event_generate("<<Duration>>")  # duration has been found
-
-                except (TypeError, tk.TclError):  # the video duration cannot be found, this can happen for mkv files
+                except (TypeError, tk.TclError):
                     pass
 
                 self._frame_number = 0
-
                 self._set_frame_size()
-
                 self.stream_base = stream.time_base
 
                 try:
-                    self.event_generate("<<Loaded>>") # generated when the video file is opened
-                
+                    self.event_generate("<<Loaded>>")  # Generated when the video file is opened
                 except tk.TclError:
                     pass
 
-                now = time.time_ns() // 1_000_000  # time in milliseconds
+                now = time.time_ns() // 1_000_000  # Time in milliseconds
                 then = now
 
-                time_in_frame = (1/self._video_info["framerate"])*1000 # second it should play each frame
-
-
                 while self._load_thread == current_thread and not self._stop:
-                    if self._seek: # seek to specific second
-                        self._container.seek(self._seek_sec*1000000 , whence='time', backward=True, any_frame=False) # the seek time is given in av.time_base, the multiplication is to correct the frame
+                    if self._seek:  # Seek to a specific second
+                        self._container.seek(
+                            self._seek_sec * 1_000_000, 
+                            whence="time", 
+                            backward=True, 
+                            any_frame=False
+                        )
                         self._seek = False
                         self._frame_number = self._video_info["framerate"] * self._seek_sec
-
                         self._seek_sec = 0
 
                     if self._paused:
-                        time.sleep(0.0001) # to allow other threads to function better when its paused
+                        time.sleep(0.0001)  # To allow other threads to function better when paused
                         continue
 
-                    now = time.time_ns() // 1_000_000  # time in milliseconds
-                    delta = now - then  # time difference between current frame and previous frame
-                    then = now
-            
-                    # print("Frame: ", frame.time, frame.index, self._video_info["framerate"])
-                    try:
-                        frame = next(self._container.decode(video=0))
+                    # Adjust logic for playback speed
+                    speed_multiplier = self._playback_speed
+                    frames_to_skip = int(speed_multiplier) if speed_multiplier >= 1.0 else 0  # Skip frames only for speeds >= 1.0
 
+                    now = time.time_ns() // 1_000_000  # Time in milliseconds
+                    delta = now - then  # Time difference between current frame and previous frame
+                    then = now
+
+                    try:
+                        for _ in range(frames_to_skip):  # Skip frames based on playback speed
+                            frame = next(self._container.decode(video=0))
+
+                        # Slow-motion playback: Increase sleep duration dynamically
+                        if speed_multiplier < 1.0:
+                            time_in_frame = (1 / self._video_info["framerate"]) * 1000 / speed_multiplier
+                        else:
+                            time_in_frame = (1 / self._video_info["framerate"]) * 1000
+
+                        frame = next(self._container.decode(video=0))
                         self._time_stamp = float(frame.pts * stream.time_base)
 
                         width = self._current_frame_size[0]
@@ -181,33 +191,34 @@ class TkinterVideo(tk.Label):
                                     new_width = round(frame.width / frame.height * height)
                                     width = new_width
 
-                        self._current_img = frame.to_image(width=width, height=height, interpolation="FAST_BILINEAR")
-
+                        self._current_img = frame.to_image(
+                            width=width, 
+                            height=height, 
+                            interpolation="FAST_BILINEAR"
+                        )
                         self._frame_number += 1
-                
+
                         self.event_generate("<<FrameGenerated>>")
 
                         if self._frame_number % self._video_info["framerate"] == 0:
                             self.event_generate("<<SecondChanged>>")
 
                         if self.consistant_frame_rate:
-                            time.sleep(max((time_in_frame - delta)/1000, 0))
-
-                        # time.sleep(abs((1 / self._video_info["framerate"]) - (delta / 1000)))
+                            time.sleep(max((time_in_frame - delta) / 1000, 0))
 
                     except (StopIteration, av.error.EOFError, tk.TclError):
                         break
-                    
+
                 self._container.close()
 
-            # print("Container: ", self._container.c)
             if self._container:
                 self._container.close()
                 self._container = None
-            
+
         finally:
             self._cleanup()
             gc.collect()
+
 
     def _cleanup(self):
         self._frame_number = 0
