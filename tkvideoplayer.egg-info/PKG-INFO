@@ -1,6 +1,6 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: tkvideoplayer
-Version: 2.8
+Version: 3.0
 Summary: This library helps you play video files in tkinter
 Home-page: https://github.com/PaulleDemon/tkVideoPlayer
 Author: Paul
@@ -12,10 +12,23 @@ Classifier: Programming Language :: Python :: 3.6
 Classifier: Programming Language :: Python :: 3.7
 Classifier: Programming Language :: Python :: 3.8
 Classifier: Programming Language :: Python :: 3.9
-Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.10Programming Language :: Python :: 3.11Programming Language :: Python :: 3.12Programming Language :: Python :: 3.13
 Requires-Python: >=3.6
 Description-Content-Type: text/markdown
 License-File: LICENSE
+Requires-Dist: av==9.2.0
+Requires-Dist: pillow>=9.0.1
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: home-page
+Dynamic: keywords
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
 
 # TkVideoplayer
 
@@ -61,14 +74,3 @@ you can easily integrate this with **CustomTkinter** as well: refer [How to inte
 * [PyCollision](https://pypi.org/project/PyCollision/) - Helps you draw hitboxes for 2d games.
 
 
-**Donate:**
-
-I'm a passionate supporter of open-source initiatives. Developing and maintaining open-source projects requires a significant commitment of time and effort. My goal is to transition to working on open-source projects on a full-time basis. If you'd like to support me and the open-source community, please consider making small donations so I can dedicate more time to open-source work.
-[Donate](https://www.buymeacoffee.com/ArtPaul)
-
-[<img src="https://github.com/PaulleDemon/PaulleDemon/blob/main/images/buy-me-coffee.png?raw=True" height="100px" width="350px">](https://www.buymeacoffee.com/ArtPaul)
-
-**Other ways to support**
-
-The site [https://adostrings.com](https://adostrings.com) and some of the production grade apps for sale to support open-source initiatives. Send mail to paul@adostrings.com to get to know more.
- 

@@ -1,11 +1,11 @@
 from setuptools import setup
+from pathlib import Path
 
-with open("Readme.md", 'r') as f:
-    long_description = f.read()
+long_description = Path("Readme.md").read_text(encoding="utf-8")
 
 setup(
     name='tkvideoplayer',
-    version='2.8',
+    version='3.0',
     description="This library helps you play video files in tkinter",
     license="MIT",
     long_description=long_description,
@@ -20,6 +20,9 @@ setup(
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10"
+        "Programming Language :: Python :: 3.11"
+        "Programming Language :: Python :: 3.12"
+        "Programming Language :: Python :: 3.13"
     ],
     keywords=['tkinter', 'video', 'player', 'video player', 'tkvideoplayer', 'play video in tkinter'],
     packages=["tkVideoPlayer"],
